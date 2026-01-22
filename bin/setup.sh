@@ -158,10 +158,22 @@ install_python_deps() {
         return 0
     fi
 
+    # .envrcが存在し、direnvが利用可能な場合は、direnvで環境変数をロード
+    if [ -f "$ENVRC_FILE" ] && command -v direnv >/dev/null; then
+        echo "--- direnvで環境変数をロード中 ---"
+        eval "$(direnv export bash)"
+    fi
+
+    # 仮想環境が有効でない場合は作成してアクティベート
     if [ -z "$VIRTUAL_ENV" ]; then
-        echo "--- 仮想環境 (.venv) を作成します ---"
-        python3 -m venv .venv
+        if [ ! -d ".venv" ]; then
+            echo "--- 仮想環境 (.venv) を作成します ---"
+            python3 -m venv .venv
+        fi
+        echo "--- 仮想環境をアクティベート中 ---"
         source .venv/bin/activate
+    else
+        echo "✅ 仮想環境は既にアクティベートされています: $VIRTUAL_ENV"
     fi
 
     echo "--- pipを最新バージョンにアップグレード中 ---"
