@@ -1,0 +1,22 @@
+source .venv/bin/activate
+unset PS1
+
+# デフォルトではプロンプトに(.venv)が表示される
+# この表示を無効化する場合は1を設定
+# export VIRTUAL_ENV_DISABLE_PROMPT=1
+
+# Add local bin directory to PATH
+export PATH="$(pwd)/bin:$PATH"
+
+# Set the default browser to wslview
+export BROWSER=/usr/bin/wslview
+
+#
+# RADKit
+#
+
+# PYTHONPATH
+# export PYTHONPATH="$HOME/.local/radkit/versions/1.7.4/python/lib/python3.11/site-packages${PYTHONPATH:+:}$PYTHONPATH"
+
+# export RADKIT_ROOT="$HOME/git/expt-radkit/radkit"
+# export PATH="$RADKIT_ROOT/bin:$PATH"

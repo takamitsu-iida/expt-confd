@@ -1,3 +1,20 @@
+# CML環境設定ファイル
+# cml_env.sampleをコピーして使うか、bin/setup.pyで生成する
+bin/cml_env
+
+# direnv環境設定ファイル
+# .envrc.sampleをコピーして使うか、bin/setup.pyで生成する
+.envrc
+
+# bin/open_terminal.shでログを残したときのファイル
+terminal_log*.txt
+
+# ログディレクトリ
+log/
+
+# 一時ディレクトリ
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -182,9 +199,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
