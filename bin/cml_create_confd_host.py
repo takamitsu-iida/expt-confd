@@ -91,6 +91,7 @@ packages:
   - make
   - python3-venv
   - direnv
+  - gcc  # for ConfD build
 
 write_files:
   #
