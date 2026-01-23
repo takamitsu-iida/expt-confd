@@ -82,7 +82,7 @@ package_reboot_if_required: true
 packages:
   - jq
   - yq
-  - libxml2-utils  # xmllint
+  - libxml2-utils  # for xmllint
   - curl
   - wget
   - git
@@ -91,7 +91,6 @@ packages:
   - make
   - python3-venv
   - direnv
-  - libssl-dev
 
 write_files:
   #
@@ -181,6 +180,12 @@ runcmd:
     cd /home/{{ UBUNTU_USERNAME }}
     git clone https://github.com/takamitsu-iida/expt-confd.git
     chown -R {{ UBUNTU_USERNAME }}:{{ UBUNTU_USERNAME }} expt-confd
+
+  # ConfDが必要とするlibssl1.1をインストール
+  - |
+    wget https://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+    dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+    rm -f libssl1.1_1.1.1f-1ubuntu2_amd64.deb
 
 """.strip()
 

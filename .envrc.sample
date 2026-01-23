@@ -20,3 +20,7 @@ export BROWSER=/usr/bin/wslview
 
 # export RADKIT_ROOT="$HOME/git/expt-radkit/radkit"
 # export PATH="$RADKIT_ROOT/bin:$PATH"
+
+if [ -f confd/confdrc ]; then
+source confd/confdrc
+fi
