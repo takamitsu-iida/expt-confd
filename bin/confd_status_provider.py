@@ -10,8 +10,9 @@ ConfD ステータスプロバイダーデーモン
 - last-checked-at: 最後にチェックした時刻（HH:MM:SS形式）
 
 YANGモデル:
+- ファイル: yang/example.yang
+- 名前空間: bin/example_ns.py
 - コールポイント名: server_status_cp
-- 名前空間: confd_status_provider_ns
 """
 
 import socket
@@ -24,7 +25,7 @@ import select
 try:
     import _confd
     import _confd.dp as dp
-    import confd_status_provider_ns as ns
+    import example_ns as ns
 except ImportError as e:
     print(f"Error: Could not import required ConfD modules: {e}")
     print("Make sure ConfD is installed and PYTHONPATH is set correctly.")
