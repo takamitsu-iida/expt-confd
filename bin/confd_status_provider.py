@@ -28,18 +28,19 @@ def run():
     wrksock = socket.socket()
 
     import struct
-    # '127.0.0.1' をネットワークバイトオーダの整数に変換
+    # IPは引き続き整数を要求されている可能性が高いです
     ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
 
     try:
-        # 引数3 (IP) は整数 ip_int
-        # 引数4 (src_addr) は None (文字列を期待されているが、通常は不要)
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565, None)
-        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, 4565, None)
+        # ポート番号を "4565" (文字列) に変更
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
+        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, "4565")
+        print("Connected using integer IP and string port.")
     except TypeError:
-        # もし引数の数が合わないと言われたら、src_addr を完全に抜く
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
-        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, 4565)
+        # 万が一 IP も文字列に戻せと言われた場合
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', "4565")
+        dp.connect(wrksock, dp.WORKER_SOCKET, '127.0.0.1', "4565")
+        print("Connected using string IP and string port.")
 
     dctx = dp.init_daemon("status_provider_daemon")
     cbs = dp.DataCallbacks()
@@ -57,7 +58,6 @@ def run():
     finally:
         ctlsock.close()
         wrksock.close()
-
 
 
 if __name__ == "__main__":
