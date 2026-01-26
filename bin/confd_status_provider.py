@@ -11,19 +11,14 @@ wrksock_global = None  # コールバックから参照できるように保持
 class TransCallbacks:
     def cb_init(self, tctx):
         try:
-            # ソケットオブジェクトではなく、整数値 (.fileno()) を渡す
-            # また、引数の順序が (tctx, fd) か (fd, tctx) かでエラーが変わるため、
-            # まずは標準的な (tctx, fd) で試します。
-            fd = wrksock_global.fileno()
+            # wrksock_global はすでに整数(int)なので、そのまま渡す
+            # もし AttributeError が出たら、単に fd = wrksock_global とする
+            fd = wrksock_global
             dp.trans_set_fd(tctx, fd)
             print(f"DEBUG: Transaction initialized with FD {fd}")
         except Exception as e:
             print(f"DEBUG callback error: {e}")
-            # エラー時は _confd.ERR を返すのがマナーです
             return _confd.ERR
-        return _confd.OK
-
-    def cb_finish(self, tctx):
         return _confd.OK
 
 class DataCallbacks:
