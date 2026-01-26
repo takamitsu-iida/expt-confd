@@ -13,33 +13,98 @@ module example {
 
   organization "Example Corp";
   contact "support@example.com";
-  description "A simple server configuration module.";
+
+  description
+    "A simple server configuration module.
+
+     This module provides configuration and operational status
+     for a server, including IP address settings and runtime
+     status information.";
+
   revision 2026-01-26 {
     description "Initial revision.";
   }
 
+  // =============================================================================
+  // Configuration Data
+  // =============================================================================
+
   // サーバー設定用のコンテナ
   container server-config {
+    description
+      "Server configuration parameters.
+
+       This container holds persistent configuration data
+       that can be modified by administrators.";
+
     leaf ip-address {
       type inet:ip-address;
       default "127.0.0.1";
+      description
+        "IP address where the server listens for connections.
+
+         Supports both IPv4 and IPv6 addresses.
+         Default is localhost (127.0.0.1).";
     }
   }
 
+  // =============================================================================
+  // Operational State Data
+  // =============================================================================
+
   // サーバーステータス用のコンテナ
   container server-status {
-    config false; // 読み取り専用
+    config false; // 読み取り専用（オペレーショナルデータ）
+
+    description
+      "Server operational status information.
+
+       This container provides runtime status data
+       that is read-only and dynamically generated
+       by the data provider.";
 
     tailf:callpoint server_status_cp; // Python側で指定する名前
 
     leaf uptime {
-        type string;
+      type string;
+      description
+        "Server uptime message.
+
+         Human-readable string indicating how long
+         the server has been running.
+         Example: 'Up and running! (Uptime: 2h 15m)'";
     }
 
     leaf last-checked-at {
-        type string;
-    }
+      type string;
+      description
+        "Timestamp of the last status check.
 
+         Time in HH:MM:SS format indicating when
+         the status was last retrieved.
+         Example: '14:30:45'";
+    }
   }
+
+  // =============================================================================
+  // RPC Operations (optional - for future extension)
+  // =============================================================================
+
+  /*
+  rpc restart-server {
+    description
+      "Restart the server.
+
+       This operation will gracefully restart
+       the server process.";
+
+    output {
+      leaf status {
+        type string;
+        description "Result message of the restart operation.";
+      }
+    }
+  }
+  */
 
 }
