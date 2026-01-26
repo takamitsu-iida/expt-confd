@@ -5,6 +5,9 @@ import _confd
 import _confd.dp as dp
 from datetime import datetime
 
+# YANGをコンパイルした時に生成された名前空間ファイルをインポート
+import server_status_ns as ns
+
 START_TIME = datetime.now()
 wrksock_global = None  # コールバックから参照できるように保持
 
@@ -24,26 +27,24 @@ class TransCallbacks:
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
-            path = str(kp)
-            print(f"DEBUG: Requested path: {path}")
+            # kp[-1] はリクエストされたパスの「一番末尾」の要素です。
+            # 例: /server-status/uptime なら uptime のタグ
+            tag = kp[-1].tag
 
-            # ハッシュIDでの判定が最も確実です
-            if "1268395647" in path: # uptime
+            if tag == ns.ns.server_status_uptime:
                 val = _confd.Value("Up and running!", _confd.C_STR)
-            elif "103640840" in path: # last-checked-at
+            elif tag == ns.ns.server_status_last_checked_at:
                 val = _confd.Value(datetime.now().strftime("%H:%M:%S"), _confd.C_STR)
             else:
-                # 最終手段：定数が見つからない場合は、直接数値を返すか
-                # _confd.ERR_NOT_FOUND などを試す
-                # 多くの環境では _confd.NOT_FOUND ですが、エラーが出るなら以下を試してください
-                return 2 # 2 は ConfD における NOT_FOUND の値です
+                return 2 # NOT_FOUND
 
             dp.data_reply_value(tctx, val)
             return _confd.OK
         except Exception as e:
-            print(f"DEBUG get_elem error: {e}")
-            # エラー時は _confd.ERR (通常は 1)
+            print(f"DEBUG Error: {e}")
             return 1
+
+
 
 def run():
     global wrksock_global
