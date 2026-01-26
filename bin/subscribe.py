@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 
-import socket
-import _confd.cdb as cdb
-import sys
+import argparse
+import atexit
 import os
 import signal
-import atexit
-import argparse
+import socket
+import sys
+
 from pathlib import Path
+
+try:
+    import _confd.cdb as cdb
+except ImportError:
+    print("Error: Could not import _confd.cdb module. Make sure ConfD is installed and PYTHONPATH is set correctly.")
+    sys.exit(1)
 
 # スクリプトのディレクトリを基準にパスを設定
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
@@ -211,7 +217,7 @@ def main():
     elif args.status:
         status_daemon()
     elif args.foreground:
-        print("Running in foreground mode")
+        print("Running in foreground mode (for testing), Ctrl-C does not work.")
         run()
     else:
         parser.print_help()
