@@ -60,48 +60,41 @@ def run():
     ctlsock = socket.socket()
     wrksock_global = socket.socket()
 
-    # 1. ソケット接続（順序：Control -> Worker）
+    # 1. 接続
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock_global, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
 
-    # 2. 【最重要】ここでWorkerソケットをシステムに教え込む
-    # trans_set_fd ではなく、daemon全体のworkerとして登録を試みる
-    try:
-        # この関数は dir(dp) にはありませんでしたが、
-        # _confd 側（dpの上位）にある可能性があります。
-        # もしエラーが出るなら、この行は飛ばして次へ。
-        dp.set_daemon_worker_fd(dctx, wrksock_global.fileno())
-    except:
-        pass
-
-    # 3. コールバック登録
+    # 2. コールバック登録
     dp.register_trans_cb(dctx, TransCallbacks())
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
-
-    # 4. 登録完了を通知
     dp.register_done(dctx)
 
-    import select
+    # 3. ファイル記述子（整数）を直接取得して監視対象にする
+    # connectの後に取得するのがポイントです
+    try:
+        ctl_fd = ctlsock.fileno()
+        wrk_fd = wrksock_global.fileno()
+    except AttributeError:
+        # すでに整数に置き換わっている場合
+        ctl_fd = ctlsock
+        wrk_fd = wrksock_global
 
-    # 監視対象を明示的に整数（FD）にする
-    # socks = [ctlsock, wrksock_global]
-    # 修正後: ファイル記述子(int)のリストにする
-    socks = [ctlsock.fileno(), wrksock_global.fileno()]
-
-    # 辞書を作っておくと、fd からソケットオブジェクトを逆引きできて便利です
-    fd_map = {ctlsock.fileno(): ctlsock, wrksock_global.fileno(): wrksock_global}
-
-    print("Status Provider is running... (Ready for 'show server-status')")
+    socks = [ctl_fd, wrk_fd]
+    print(f"Status Provider is running... (CTL FD: {ctl_fd}, WRK FD: {wrk_fd})")
 
     try:
         while True:
-            r, _, _ = select.select(socks, [], [])
+            # タイムアウト(1秒)を設定して、ループが死んでいないか確認しやすくする
+            r, _, _ = select.select(socks, [], [], 1.0)
+            if not r:
+                continue # タイムアウト時は何もしない
+
             for fd in r:
-                # 反応した FD に対応するソケットを fd_ready に渡す
-                dp.fd_ready(dctx, fd_map[fd])
+                # ソケットオブジェクトではなく、整数FDをそのまま渡す
+                # これにより、API内部での型変換トラブルを回避します
+                dp.fd_ready(dctx, fd)
     except KeyboardInterrupt:
         pass
-
 
 if __name__ == "__main__":
     run()
