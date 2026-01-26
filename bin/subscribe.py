@@ -33,15 +33,19 @@ def run():
                 # 購読したパス、あるいはその配下の特定のパスを指定します
                 modifications = cdb.get_modifications(read_sock, sub_ids[0], 0, "/server-config")
 
-                if not modifications:
-                    print("No modifications found.")
-                else:
-                    for mod in modifications:
-                        # mod.tag は [XMLタグのハッシュ値] のリストです。
-                        # mod.v は変更後の値 (_confd.Value) です。
-                        # _confd.hash2str() を使ってタグを人間が読める文字列に変換します。
-                        tag_path = "/".join([_confd.hash2str(t) for t in mod.tag])
-                        print(f"Diff Detected! Path: {tag_path}, Value: {str(mod.v)}")
+                for mod in modifications:
+                    # 初回は属性を確認するために print(dir(mod)) を入れると確実です
+                    print(f"DEBUG: mod attributes -> {dir(mod)}")
+
+                    # 一般的な _confd の構造
+                    try:
+                        # タグ（パス）と値を取り出す
+                        t = mod.tag
+                        v = mod.val if hasattr(mod, 'val') else mod.v
+                        print(f"Diff Detected! Path Tag: {t}, Value: {v}")
+                    except Exception as e:
+                        print(f"Could not parse mod: {e}")
+
 
                 cdb.end_session(read_sock)
             finally:
