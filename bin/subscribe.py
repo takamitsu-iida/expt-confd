@@ -151,11 +151,14 @@ def run():
         # 今後項目が増えてもここに追加するだけでOK
     ]
 
-    # 購読登録
-    cdb.subscribe(cdb_sock, 1, 0, '/server-config')
+    # 購読登録（watched_pathsから動的に登録）
+    for path in watched_paths:
+        cdb.subscribe(cdb_sock, 1, 0, path)
+
+    # 購読登録完了を通知
     cdb.subscribe_done(cdb_sock)
 
-    print("Waiting for configuration changes (Robust Mode)...")
+    print("Waiting for configuration changes ...")
 
     try:
         while True:
