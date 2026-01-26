@@ -27,30 +27,28 @@ class TransCallbacks:
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
-            # kp はパスの階層が入ったリストのような構造です。
-            # 一番最後（末尾）の要素が、現在要求されているリーフ（uptime等）です。
-            # .tag でその ID を取得できます。
             tag = kp[-1].tag
+            # print(f"DEBUG: Requested tag ID: {tag}") # 必要に応じて
 
-            # ハッシュ ID を直接書く代わりに、ns ファイルの定数を使用
-            if tag == ns.ns.server_status_uptime:
+            # ns.ns クラス内の属性と直接比較
+            if tag == ns.ns.ex_uptime:
                 val = _confd.Value("Up and running!", _confd.C_STR)
+                dp.data_reply_value(tctx, val)
 
-            elif tag == ns.ns.server_status_last_checked_at:
+            elif tag == ns.ns.ex_last_checked_at:
                 now_str = datetime.now().strftime("%H:%M:%S")
                 val = _confd.Value(now_str, _confd.C_STR)
+                dp.data_reply_value(tctx, val)
 
             else:
-                # 定数が見つからない場合は 2 (NOT_FOUND) を返す
+                # 2 = NOT_FOUND (見つからない場合に ConfD を待たせない)
                 return 2
 
-            dp.data_reply_value(tctx, val)
             return _confd.OK
 
         except Exception as e:
-            print(f"DEBUG get_elem error: {e}")
+            print(f"DEBUG Error: {e}")
             return 1 # _confd.ERR
-
 
 def run():
     global wrksock_global
