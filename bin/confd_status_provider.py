@@ -74,15 +74,19 @@ def run():
 
     try:
         while True:
-            read_socks, _, _ = select.select(socks, [], [])
+            # タイムアウトを短く設定し、確実に回す
+            read_socks, _, _ = select.select(socks, [], [], 0.1)
+
             for s in read_socks:
-                # Daemon Context とソケットを渡してリクエストを処理
-                dp.fd_ready(dctx, s)
+                try:
+                    # ここで dp.fd_ready を呼ぶことで、
+                    # ConfD が cb_get_elem を呼び出すトリガーになります
+                    dp.fd_ready(dctx, s)
+                except Exception as e:
+                    print(f"DEBUG fd_ready error: {e}")
     except KeyboardInterrupt:
         pass
-    finally:
-        ctlsock.close()
-        wrksock_global.close()
+
 
 if __name__ == "__main__":
     run()
