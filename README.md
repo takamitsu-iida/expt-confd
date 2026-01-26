@@ -16,13 +16,39 @@ Cisco社のSoftware Downloadのページからダウンロードできます。
 
 ![構成](/assets/download_confd.png)
 
+<br><br>
+
 リリースノートとか、そういうのは見当たりません。
 
-zipファイルをダウンロードします。
+x86_64の方のzipファイルをダウンロードします。
 
-今回は　`confd-basic-8.0.20.linux.x86_64.signed.zip`　をダウンロードしました。
+今回ダウンロードしたのは　`confd-basic-8.0.20.linux.x86_64.signed.zip`　です。
 
-これをHyper-Vホストになっている母艦のC:\inetpub\wwwrootにおいておきます。
+これをHyper-Vホストになっている母艦の `C:\inetpub\wwwroot` においておきます。
+
+<br><br>
+
+## 環境構築
+
+Hyper-VホストのWSL(Ubuntu)で作業を行います。
+
+このリポジトリをクローンします。
+
+```bash
+git clone https://github.com/takamitsu-iida/expt-confd.git
+```
+
+ディレクトリを移動します。
+
+```bash
+cd expt-confd/
+```
+
+初期セットアップスクリプトを実行して環境を整えます。
+
+```bash
+bin/setup.sh
+```
 
 <br><br>
 
@@ -32,7 +58,7 @@ CML上にラボを作成して、Ubuntuを作成します。
 
 ![構成](/assets/lab.png)
 
-<br>
+<br><br>
 
 ラボの作成は手作業だと大変なのでスクリプトで作成します。
 
@@ -95,10 +121,10 @@ sudo -s -E
 
 ConfDをインストールする先を `/usr/lib/confd` とします。
 
-このディレクトリをあらかじめ作っておきます。
+このディレクトリを作ります（Ubuntuの起動時にすでに作られているはずなので念の為）。
 
 ```bash
-mkdir /usr/lib/confd
+mkdir -p /usr/lib/confd
 ```
 
 インストール作業を行うフォルダを/tmpに作成します。
@@ -118,7 +144,9 @@ Hyper-Vの母艦からConfDのファイルをダウンロードします。
 
 <br>
 
-`wget http://192.168.0.198/confd-basic-8.0.20.linux.x86_64.signed.zip`
+```bash
+wget http://192.168.0.198/confd-basic-8.0.20.linux.x86_64.signed.zip
+```
 
 unzipコマンドで解凍します。
 
@@ -177,9 +205,31 @@ chmod a+x .bin
 実行例。
 
 ```bash
+root@confd:/tmp/confd# ./confd-basic-8.0.20.linux.x86_64.installer.bin /usr/lib/confd
+INFO  Unpacked confd-basic-8.0.20 in /usr/lib/confd
+INFO  Found and unpacked corresponding DOCUMENTATION_PACKAGE
+INFO  Found and unpacked corresponding EXAMPLE_PACKAGE
+INFO  Generating default SSH hostkey (this may take some time)
+INFO  SSH hostkey generated
+INFO  Generating self-signed certificates for HTTPS
+INFO  Environment set-up generated in /usr/lib/confd/confdrc
+INFO  ConfD installation script finished
+root@confd:/tmp/confd#
 ```
 
+インストールできました。
 
+一度ログアウトして、もう一度ログインします。
+
+コンパイラ `confdc` がPATHに存在するか、確認します。
+
+```bash
+cisco@confd:~$ which confdc
+/usr/lib/confd/bin/confdc
+
+cisco@confd:~$ confdc --version
+confd-8.0.20
+```
 
 <!--
 

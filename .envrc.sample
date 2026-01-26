@@ -12,15 +12,8 @@ export PATH="$(pwd)/bin:$PATH"
 export BROWSER=/usr/bin/wslview
 
 #
-# RADKit
+# ConfD
 #
-
-# PYTHONPATH
-# export PYTHONPATH="$HOME/.local/radkit/versions/1.7.4/python/lib/python3.11/site-packages${PYTHONPATH:+:}$PYTHONPATH"
-
-# export RADKIT_ROOT="$HOME/git/expt-radkit/radkit"
-# export PATH="$RADKIT_ROOT/bin:$PATH"
-
-if [ -f $HOME/confd/confdrc ]; then
-  source $HOME/confd/confdrc
+if [ -f /usr/lib/confd/confdrc ]; then
+  export PYTHONPATH=$PYTHONPATH:/usr/lib/confd/src/confd/pyapi
 fi
