@@ -2,13 +2,17 @@
 
 <br>
 
-ConfDのベーシック版は無料で使えますので、試してみます。
+ConfDのベーシック版は無料で使えますので、実際に動かしてみます。
+
+日常使っているWSLのUbuntuは汚したくないので、CML上にUbuntuを立てて、そこで試してみます。
 
 <br><br>
 
 ## ダウンロード
 
 Cisco社のSoftware Downloadのページからダウンロードできます。
+
+ログインが必要です。
 
 ![構成](/assets/download_confd.png)
 
@@ -70,10 +74,49 @@ bin/open_terminal.sh 7000
 
 ## ConfDのインストール
 
-Hyper-Vの母艦からダウンロードします。
+試行錯誤の結果、分かったこと。
 
-Hyper-Vの母艦はWindows Defenderファイアウォールで防御されているかもしれません。
-その場合は一時的にファイアウォールを停止します。
+- 古いOpenSSL（バージョン 1.1）が必要
+- gccが必要
+- makeが必要
+- インストール時にディレクトリを指定する必要がある
+
+スクリプトで作成したUbuntuはこれらを反映した状態で起動します。
+
+ConfDのインストール先は /usr/lib/confd としています。
+
+<br><br>
+
+作業はroot特権で行います。
+
+```bash
+sudo -s -E
+```
+
+ConfDをインストールする先を `/usr/lib/confd` とします。
+
+このディレクトリをあらかじめ作っておきます。
+
+```bash
+mkdir /usr/lib/confd
+```
+
+インストール作業を行うフォルダを/tmpに作成します。
+
+```bash
+mkdir /tmp/confd
+cd /tmp/confd
+```
+
+Hyper-Vの母艦からConfDのファイルをダウンロードします。
+
+> [!NOTE]
+>
+> Hyper-Vの母艦はWindows Defenderファイアウォールで防御されているかもしれません。
+>
+> その場合は一時的にファイアウォールを停止します。
+
+<br>
 
 `wget http://192.168.0.198/confd-basic-8.0.20.linux.x86_64.signed.zip`
 
@@ -92,19 +135,13 @@ Archive:  confd-basic-8.0.20.linux.x86_64.signed.zip
   inflating: confd-basic-8.0.20.doc.tar.gz
 ```
 
-ルート特権を取得します。
+confd-basic-8.0.20.linux.x86_64.signed.bin を実行できるようにモードを変更します。
 
 ```bash
-sudo -s -E
+chmod a+x *.bin
 ```
 
-binファイルがインストーラのようです。実行できるようにモードを変えます。
-
-```bash
-cisco@confd:~$ chmod a+x *.bin
-```
-
-実行します。
+実行例。
 
 ```bash
 root@confd:~# ./confd-basic-8.0.20.linux.x86_64.signed.bin
@@ -123,122 +160,32 @@ Successfully fetched a public key from tailf.cer
 Successfully verified the signature of confd-basic-8.0.20.linux.x86_64.installer.bin using tailf.cer
 ```
 
-ファイルがさらに解凍されて　`confd-basic-8.0.20.linux.x86_64.installer.bin`　というファイルが生成されます。
+ファイルがさらに解凍され　`confd-basic-8.0.20.linux.x86_64.installer.bin`　というファイルが生成されます。
 
-これに実行権限を付けて実行します。
-
-```bash
-root@confd:~# chmod a+x confd-basic-8.0.20.linux.x86_64.installer.bin
-root@confd:~#
-root@confd:~#
-root@confd:~# ./confd-basic-8.0.20.linux.x86_64.installer.bin
-Usage: ./confd-basic-8.0.20.linux.x86_64.installer.bin <install-dir>
-
-This is the ConfD installation script. It will install ConfD in the
-given directory in a way suitable for development with ConfD. See
-the ConfD User Manual for information about how to install ConfD for
-deployment on a host system.
-```
-
-おっと。
-
-インストールする先のディレクトリを指定しないいけないようです。
-
-ここではconfdというディレクトリを作成して、それを指定してみます。
+これがインストーラです。このファイルにも実行権限を付けます。
 
 ```bash
-mkdir $HOME/confd
+chmod a+x .bin
 ```
 
-再度実行してみます。
+インストール先のディレクトリを指定して実行します。
 
-`./confd-basic-8.0.20.linux.x86_64.installer.bin $HOME/confd`
+```bash
+./confd-basic-8.0.20.linux.x86_64.installer.bin /usr/lib/confd
+```
 
 実行例。
 
 ```bash
-root@confd:~# ./confd-basic-8.0.20.linux.x86_64.installer.bin confd
-INFO  Unpacked confd-basic-8.0.20 in /home/cisco/confd
-INFO  Found and unpacked corresponding DOCUMENTATION_PACKAGE
-INFO  Found and unpacked corresponding EXAMPLE_PACKAGE
-INFO  Generating default SSH hostkey (this may take some time)
-INFO  SSH hostkey generated
-INFO  Generating self-signed certificates for HTTPS
-
-
-REQUIRED LIBRARIES NOT FOUND
-
-ConfD requires a version of the libcrypto.so library that could not
-be found on your system:
-
-        libcrypto.so.1.1 => not found
-
-The missing library must be installed using exactly the name shown above
-to succesfully run ConfD. If you have the correct library version
-installed using another name, this problem may be solved by creating a
-symbolic link to the installed library with the name ConfD requires.
-
-The correct version of the crypto library may be downloaded and
-installed using the standard mechanisms for your system. You may also
-download the required OpenSSL package directly from the OpenSSL site
-(www.openssl.org). Any patch level (indicated by a final letter in the
-OpenSSL version number) within the required OpenSSL major version may be
-used.
-
-You are welcome to ask your Cisco support contact for assistance.
-
-USING A DIFFERENT VERSION OF OpenSSL WITH ConfD
-
-For ConfD, you may use a different version of OpenSSL than the one which
-the distribution has been built with. For information on doing this,
-please consult the section "Using a different version of OpenSSL" in the
-"Advanced Topics" chapter of the ConfD User Guide.
-
-INFO  Environment set-up generated in /home/cisco/confd/confdrc
-INFO  ConfD installation script finished
-root@confd:~#
 ```
 
-ぐぬぬ。
 
-libcrypto.so.1.1が必要と言っています。
 
-OpenSSLのページからlibssl1.1を個別にダウンロードしてインストールします。
+<!--
 
-> [!NOTE]
->
-> 古いバージョンはここからダウンロードします
->
-> https://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/
+ArcOSの場合、/usr/share/arcos/uiにfxsファイルが多数格納されてます。
+これがload_dirだと思われます。
 
-<br>
 
-```bash
-wget https://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
 
-dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-```
-
-ディレクトリを削除して、もう一度最初からやり直します。
-
-```bash
-rm -rf confd
-mkdir confd
-./confd-basic-8.0.20.linux.x86_64.installer.bin confd
-```
-
-実行例
-
-```bash
-root@confd:~# ./confd-basic-8.0.20.linux.x86_64.installer.bin confd
-INFO  Unpacked confd-basic-8.0.20 in /home/cisco/confd
-INFO  Found and unpacked corresponding DOCUMENTATION_PACKAGE
-INFO  Found and unpacked corresponding EXAMPLE_PACKAGE
-INFO  Generating default SSH hostkey (this may take some time)
-INFO  SSH hostkey generated
-INFO  Generating self-signed certificates for HTTPS
-INFO  Environment set-up generated in /home/cisco/confd/confdrc
-INFO  ConfD installation script finished
-```
-
-うまくいきました。
+-->

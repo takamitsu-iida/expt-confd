@@ -183,10 +183,24 @@ runcmd:
     chown -R {{ UBUNTU_USERNAME }}:{{ UBUNTU_USERNAME }} expt-confd
 
   # ConfDが必要とするlibssl1.1をインストール
+  # 古いバージョンはここからダウンロードします
+  # https://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/
   - |
     wget https://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
     dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
     rm -f libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+
+  # ConfDをインストールするディレクトリ/usr/lib/confdを作成
+  - mkdir -p /usr/lib/confd
+
+  # /usr/lib/confd/confdrcが存在すればそれをsourceするように.bashrcを変更
+  - |
+    cat - << 'EOS' >> /etc/bash.bashrc
+    #
+    if [ -f /usr/lib/confd/confdrc ]; then
+      source /usr/lib/confd/confdrc
+    fi
+    EOS
 
 """.strip()
 
