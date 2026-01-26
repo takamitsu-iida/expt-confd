@@ -11,8 +11,6 @@
   -->
   <loadPath>
     <dir>/usr/lib/confd/etc/confd</dir>
-    <dir>.</dir>
-    <dir>./loadpath</dir>
   </loadPath>
 
   <!--
@@ -23,7 +21,7 @@
       protocol, and 'global.data' which is used to store some data
       that needs to be retained across reboots.
   -->
-  <stateDir>./confd-state</stateDir>
+  <stateDir>/usr/lib/confd/var/confd/state</stateDir>
 
   <!--
       A hide group cannot be unhidden unless it has been listed
@@ -66,25 +64,74 @@
 
   </cdb>
 
+  <!--
+      These keys are used to encrypt values adhering to the types
+      tailf:des3-cbc-encrypted-string, tailf:aes-cfb-128-encrypted-string
+      and tailf:aes-256-cfb-128-encrypted-string as defined in the tailf-common
+      YANG module. These types are described in confd_types(3).
+  -->
+  <encryptedStrings>
+    <DES3CBC>
+      <key1>0123456789abcdef</key1>
+      <key2>0123456789abcdef</key2>
+      <key3>0123456789abcdef</key3>
+      <initVector>0123456789abcdef</initVector>
+    </DES3CBC>
+
+    <AESCFB128>
+      <key>0123456789abcdef0123456789abcdef</key>
+      <initVector>0123456789abcdef0123456789abcdef</initVector>
+    </AESCFB128>
+
+    <AES256CFB128>
+      <key>0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef</key>
+    </AES256CFB128>
+  </encryptedStrings>
 
   <logs>
+    <!--
+        Shared settings for how to log to syslog.
+        Each log can be configured to log to file and/or syslog.  If a
+        log is configured to log to syslog, the settings below are used.
+    -->
+    <syslogConfig>
+      <!-- facility can be 'daemon', 'local0' ... 'local7' or an integer -->
+      <facility>daemon</facility>
+      <!-- if udp is not enabled, messages will be sent to local syslog -->
+      <udp>
+        <enabled>false</enabled>
+        <host>syslogsrv.example.com</host>
+        <port>514</port>
+      </udp>
+    </syslogConfig>
 
+    <!--
+        'confdlog' is a normal daemon log.  Check this log for
+        startup problems of confd itself.
+        By default, it logs directly to a local file, but it can be
+        configured to send to a local or remote syslog as well.
+    -->
     <confdLog>
       <enabled>true</enabled>
       <file>
         <enabled>false</enabled>
-        <name>./log/confd.log</name>
+        <name>/usr/lib/confd/var/confd/log/confd.log</name>
       </file>
       <syslog>
-        <enabled>false</enabled>
+        <enabled>true</enabled>
       </syslog>
     </confdLog>
 
+    <!--
+        The developer logs are supposed to be used as debug logs
+        for troubleshooting user-written C code.  Enable
+        and check these logs for problems with validation code, etc.
+    -->
     <developerLog>
-      <enabled>false</enabled>
+      <enabled>true</enabled>
       <file>
         <enabled>false</enabled>
-        <name>./log/devel.log</name>
+        <name>/usr/lib/confd/var/confd/log/devel.log</name>
       </file>
       <syslog>
         <enabled>true</enabled>
@@ -92,21 +139,26 @@
     </developerLog>
 
     <auditLog>
-      <enabled>false</enabled>
+      <enabled>true</enabled>
       <file>
         <enabled>false</enabled>
-        <name>./log/audit.log</name>
+        <name>/usr/lib/confd/var/confd/log/audit.log</name>
       </file>
       <syslog>
         <enabled>true</enabled>
       </syslog>
     </auditLog>
 
+    <!--
+        The netconf log can be used to troubleshoot NETCONF operations,
+        such as checking why e.g. a filter operation didn't return the
+        data requested.
+    -->
     <netconfLog>
-      <enabled>false</enabled>
+      <enabled>true</enabled>
       <file>
         <enabled>false</enabled>
-        <name>./log/netconf.log</name>
+        <name>/usr/lib/confd/var/confd/log/netconf.log</name>
       </file>
       <syslog>
         <enabled>true</enabled>
@@ -114,10 +166,10 @@
     </netconfLog>
 
     <jsonrpcLog>
-      <enabled>false</enabled>
+      <enabled>true</enabled>
       <file>
         <enabled>false</enabled>
-        <name>./log/jsonrpc.log</name>
+        <name>/usr/lib/confd/var/confd/log/jsonrpc.log</name>
       </file>
       <syslog>
         <enabled>false</enabled>
@@ -127,14 +179,14 @@
 
     <webuiAccessLog>
       <enabled>false</enabled>
-      <dir>./log/confd</dir>
+      <dir>/usr/lib/confd/var/confd/log/confd</dir>
     </webuiAccessLog>
 
     <snmpLog>
       <enabled>false</enabled>
       <file>
         <enabled>true</enabled>
-        <name>./log/snmp.log</name>
+        <name>/usr/lib/confd/var/confd/log/snmp.log</name>
       </file>
       <syslog>
         <enabled>false</enabled>
@@ -143,9 +195,14 @@
 
     <netconfTraceLog>
       <enabled>false</enabled>
-      <filename>./log/netconf.trace</filename>
+      <filename>/usr/lib/confd/var/confd/log/netconf.trace</filename>
     </netconfTraceLog>
 
+    <!--
+        The error log is used for internal logging from the confd
+        daemon.  It is used for troubleshooting the confd daemon
+        itself, and should normally be disabled.
+    -->
     <errorLog>
       <enabled>false</enabled>
       <filename>/tmp/confderr.log</filename>
