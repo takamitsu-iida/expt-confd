@@ -14,10 +14,28 @@ module example {
     description "Initial revision.";
   }
 
+  // サーバー設定用のコンテナ
   container server-config {
     leaf ip-address {
       type inet:ip-address;
       default "127.0.0.1";
     }
   }
+
+  // サーバーステータス用のコンテナ
+  container server-status {
+    config false; // 読み取り専用
+
+    tailf:callpoint server_status_cp; // Python側で指定する名前
+
+    leaf uptime {
+        type string;
+    }
+
+    leaf last-checked-at {
+        type string;
+    }
+
+  }
+
 }
