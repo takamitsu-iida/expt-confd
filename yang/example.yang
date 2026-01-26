@@ -1,0 +1,6 @@
+container server-config {
+    leaf ip-address {
+        type inet:ip-address;
+        default "127.0.0.1";
+    }
+}

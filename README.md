@@ -231,6 +231,57 @@ cisco@confd:~$ confdc --version
 confd-8.0.20
 ```
 
+<br>
+
+サンプルディレクトリへ移動します。
+
+```bash
+cd /usr/lib/confd/examples.confd/intro/python/1-2-3-start-query-model
+```
+
+YANGモデルをコンパイルします。
+
+```bash
+make all
+```
+
+実行例。
+
+```bash
+root@confd:/usr/lib/confd/examples.confd/intro/python/1-2-3-start-query-model# make all
+/usr/lib/confd/bin/confdc --fail-on-warnings  -c -o dhcpd.fxs  dhcpd.yang
+/usr/lib/confd/bin/confdc -c commands-j.cli
+/usr/lib/confd/bin/confdc -c commands-c.cli
+mkdir -p ./confd-cdb
+cp /usr/lib/confd/var/confd/cdb/aaa_init.xml ./confd-cdb
+ln -s /usr/lib/confd/etc/confd/ssh ssh-keydir
+/usr/lib/confd/bin/confdc --emit-python dhcpd_ns.py dhcpd.fxs
+Python build complete
+```
+
+ConfDデーモンを起動します。
+
+フォアグラウンドで起動されますので、バックグランドに回します。
+
+```bash
+make start &
+```
+
+CLIで確認します。
+
+```bash
+confd_cli -u admin
+```
+
+CLIが起動したら、'show running-config' など、Ciscoライクなコマンドを試してみて、動作することを確認します。
+
+
+動作確認ができたらバックグランドに回した make start を停止します。
+
+```bash
+kill %%
+```
+
 <!--
 
 ArcOSの場合、/usr/share/arcos/uiにfxsファイルが多数格納されてます。
