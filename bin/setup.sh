@@ -44,8 +44,12 @@ install_tools() {
         packages_to_install+=(direnv)
     fi
 
+    if ! command -v make >/dev/null; then
+        packages_to_install+=(make)
+    fi
+
     if [ ${#packages_to_install[@]} -eq 0 ] && command -v pip3 >/dev/null; then
-        echo "python3, pip3, direnvは既にインストールされています。スキップします。"
+        echo "python3, pip3, direnv, makeは既にインストールされています。スキップします。"
         return 0
     fi
 
@@ -55,25 +59,25 @@ install_tools() {
     if command -v apt >/dev/null; then
         echo "--> Debian/Ubuntu環境を検出"
         sudo apt update
-        install_cmd="sudo apt install -y python3 python3-pip python3-venv direnv"
+        install_cmd="sudo apt install -y python3 python3-pip python3-venv direnv make"
 
     # RHEL/Fedora/CentOS (dnf/yum)
     elif command -v dnf >/dev/null; then
         echo "--> RHEL/Fedora/CentOS環境 (dnf) を検出"
-        install_cmd="sudo dnf install -y python3 python3-pip python3-venv direnv"
+        install_cmd="sudo dnf install -y python3 python3-pip python3-venv direnv make"
 
     elif command -v yum >/dev/null; then
         echo "--> CentOS環境 (yum) を検出"
-        install_cmd="sudo yum install -y python3 python3-pip python3-venv direnv"
+        install_cmd="sudo yum install -y python3 python3-pip python3-venv direnv make"
 
     # openSUSE/SUSE (zypper)
     elif command -v zypper >/dev/null; then
         echo "--> openSUSE/SUSE環境を検出"
-        install_cmd="sudo zypper install -y python3 python3-pip python3-venv direnv"
+        install_cmd="sudo zypper install -y python3 python3-pip python3-venv direnv make"
 
     else
         echo "⚠️ 互換性のあるパッケージマネージャーが見つかりませんでした。"
-        echo "python3, python3-pip, direnvを手動でインストールしてください。"
+        echo "python3, python3-pip, direnv, makeを手動でインストールしてください。"
         exit 1
     fi
 
@@ -85,6 +89,7 @@ install_tools() {
         fi
     fi
 }
+
 
 # direnvをシェルにフックする関数
 setup_direnv_hook() {
