@@ -37,49 +37,47 @@ class DataCallbacks:
 def run():
     dctx = dp.init_daemon("status_provider_daemon")
 
-    # 接続処理（成功したものを継続）
     ctlsock = socket.socket()
     wrksock = socket.socket()
+
+    # 1. 接続
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
-    print("Connected successfully!")
 
-    # --- 2. クラスのインスタンスを登録 ---
-    # 辞書 {'cb_init': ...} ではなく、オブジェクトそのものを渡します
+    # 2. 【重要】ソケットをContextに登録する
+    # これにより "No descriptor set" エラーを解消します
+    dp.set_fd(dctx, ctlsock)
+    dp.set_fd(dctx, wrksock)
+
+    print("Connected and FDs are set.")
+
+    # 3. コールバック登録 (クラス形式)
     dp.register_trans_cb(dctx, TransCallbacks())
-
-    # データコールバックも同様にクラスで登録
-    # メソッド名が cb_get_elem になっていることに注目
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
-
     dp.register_done(dctx)
+
+    import select
+    socks = [ctlsock, wrksock]
 
     print("Status Provider is running... (Waiting for show server-status)")
 
-    # 監視対象のソケットリスト
-    # ctlsock: ConfDからの命令を受ける
-    # wrksock: 実際のデータを流す
-    socks = [ctlsock, wrksock]
-
     try:
         while True:
-            # どちらかのソケットにデータが来るまで待機
-            read_socks, _, _ = select.select(socks, [], [])
+            # タイムアウトを設定して確実にループを回す
+            read_socks, _, _ = select.select(socks, [], [], 1.0)
 
             for s in read_socks:
                 try:
-                    # 届いたソケットと dctx を渡して処理
-                    # この API バージョンでは fd_ready が全てをハンドルします
+                    # 正しい引数順序で処理
                     dp.fd_ready(dctx, s)
                 except Exception as e:
-                    print(f"Error processing request: {e}")
-
+                    # エラーが出てもループを止めない
+                    print(f"DEBUG Error: {e}")
     except KeyboardInterrupt:
         pass
     finally:
         ctlsock.close()
         wrksock.close()
-
 
 
 
