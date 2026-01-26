@@ -10,10 +10,10 @@ bin/cml_env
 terminal_log*.txt
 
 # ログディレクトリ
-log/
+./log
 
 # 一時ディレクトリ
-tmp/
+./tmp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
