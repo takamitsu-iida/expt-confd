@@ -24,6 +24,16 @@ PID_FILE = TMP_DIR / 'subscribe.pid'
 # ログファイルのパス
 LOG_FILE = LOG_DIR / 'subscribe.log'
 
+# グローバルフラグ
+running = True
+
+def signal_handler(signum, frame):
+    """シグナルハンドラ"""
+    global running
+    print("\nReceived signal, stopping...")
+    running = False
+
+
 def daemonize():
     """プロセスをデーモン化"""
     try:
@@ -141,6 +151,12 @@ def status_daemon():
             os.remove(PID_FILE)
 
 def run():
+    global running
+
+    # シグナルハンドラを設定
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     # 購読用ソケットのセットアップ
     cdb_sock = socket.socket()
     cdb.connect(cdb_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
@@ -160,47 +176,52 @@ def run():
 
     print("Waiting for configuration changes ...")
 
-    # シグナルハンドラを設定
-    def signal_handler(signum, frame):
-        print("\nReceived signal, stopping...")
-        cdb_sock.close()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
     try:
-        while True:
-            # 1. 変更通知を待機
-            cdb.read_subscription_socket(cdb_sock)
-
-            # 2. 値を読み取るためのセッションを開始
-            read_sock = socket.socket()
-            cdb.connect(read_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
-
+        while running:
             try:
-                cdb.start_session(read_sock, cdb.RUNNING)
+                # タイムアウトを設定してシグナルを受け取れるようにする
+                cdb_sock.settimeout(1.0)
 
-                print("--- Config Update Detected ---")
-                for path in watched_paths:
-                    try:
-                        val = cdb.get(read_sock, path)
-                        print(f"Path: {path} -> Value: {val}")
-                    except Exception as e:
-                        print(f"Path: {path} -> Not found or Error: {e}")
+                # 1. 変更通知を待機
+                cdb.read_subscription_socket(cdb_sock)
 
-                cdb.end_session(read_sock)
-            finally:
-                read_sock.close()
+                # タイムアウトを解除
+                cdb_sock.settimeout(None)
 
-            # 3. 通知完了を報告（これを忘れると次の変更が届きません）
-            cdb.sync_subscription_socket(cdb_sock, 1)
+                # 2. 値を読み取るためのセッションを開始
+                read_sock = socket.socket()
+                cdb.connect(read_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
 
-    except Exception as e:
-        print(f"Error: {e}")
-        cdb_sock.close()
-        raise
+                try:
+                    cdb.start_session(read_sock, cdb.RUNNING)
+
+                    print("--- Config Update Detected ---")
+                    for path in watched_paths:
+                        try:
+                            val = cdb.get(read_sock, path)
+                            print(f"Path: {path} -> Value: {val}")
+                        except Exception as e:
+                            print(f"Path: {path} -> Not found or Error: {e}")
+
+                    cdb.end_session(read_sock)
+                finally:
+                    read_sock.close()
+
+                # 3. 通知完了を報告（これを忘れると次の変更が届きません）
+                cdb.sync_subscription_socket(cdb_sock, 1)
+
+            except socket.timeout:
+                # タイムアウトは正常、ループを継続
+                continue
+            except Exception as e:
+                if running:
+                    print(f"Error in subscription loop: {e}")
+                break
+
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
     finally:
+        print("Closing connection...")
         cdb_sock.close()
 
 def main():
