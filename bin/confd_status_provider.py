@@ -34,11 +34,11 @@ def run():
 
     try:
         # ポート番号を "4565" (文字列) に変更
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', "4565")
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
         print("Connected using integer IP and string port.")
     except TypeError as e:
         print(f"Error connecting to control socket: {e}")
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
         print("Connected using integer IP and integer port.")
 
     try:
