@@ -24,26 +24,34 @@ class TransCallbacks:
             return _confd.ERR
         return _confd.OK
 
+import server_status_ns as ns
+
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
-            # kp[-1] はリクエストされたパスの「一番末尾」の要素です。
-            # 例: /server-status/uptime なら uptime のタグ
+            # kp はパスの階層が入ったリストのような構造です。
+            # 一番最後（末尾）の要素が、現在要求されているリーフ（uptime等）です。
+            # .tag でその ID を取得できます。
             tag = kp[-1].tag
 
+            # ハッシュ ID を直接書く代わりに、ns ファイルの定数を使用
             if tag == ns.ns.server_status_uptime:
                 val = _confd.Value("Up and running!", _confd.C_STR)
+
             elif tag == ns.ns.server_status_last_checked_at:
-                val = _confd.Value(datetime.now().strftime("%H:%M:%S"), _confd.C_STR)
+                now_str = datetime.now().strftime("%H:%M:%S")
+                val = _confd.Value(now_str, _confd.C_STR)
+
             else:
-                return 2 # NOT_FOUND
+                # 定数が見つからない場合は 2 (NOT_FOUND) を返す
+                return 2
 
             dp.data_reply_value(tctx, val)
             return _confd.OK
-        except Exception as e:
-            print(f"DEBUG Error: {e}")
-            return 1
 
+        except Exception as e:
+            print(f"DEBUG get_elem error: {e}")
+            return 1 # _confd.ERR
 
 
 def run():

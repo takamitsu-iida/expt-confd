@@ -17,6 +17,7 @@ all: $(FXS_FILES)
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
 	mkdir -p $(LOADPATH_DIR)
 	confdc -c $< -o $@ --yangpath $(CONFD_DIR)/src/confd/standard
+	confdc --emit-python bin/server_status_ns.py server-status.fxs
 
 clean:
 	rm -f $(LOADPATH_DIR)/*.fxs
