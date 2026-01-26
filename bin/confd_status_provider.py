@@ -6,6 +6,17 @@ import _confd.dp as dp
 from datetime import datetime
 import select
 
+
+# --- ハッシュ値の動的取得 ---
+# 文字列からハッシュ値を計算して変数に格納
+# ※ str2hash は整数を返すので、比較しやすいように str() で囲むか、
+# 後続の path 判定を工夫します。
+UPTIME_HASH = str(_confd.str2hash("uptime"))
+LAST_CHECKED_HASH = str(_confd.str2hash("last-checked-at"))
+
+print(f"DEBUG: Loaded hashes - uptime: {UPTIME_HASH}, last-checked: {LAST_CHECKED_HASH}")
+# ---------------------------
+
 START_TIME = datetime.now()
 wrksock_global = None
 
@@ -31,10 +42,10 @@ class DataCallbacks:
             print(f"DEBUG: Requested path: {path}")
 
             # ハッシュIDを直接使って判定（確実な方法）
-            if "1268395647" in path: # uptime
+            if UPTIME_HASH in path: # uptime
                 val = _confd.Value("Up and running!", _confd.C_STR)
                 dp.data_reply_value(tctx, val)
-            elif "103640840" in path: # last-checked-at
+            elif LAST_CHECKED_HASH in path: # last-checked-at
                 now_str = datetime.now().strftime("%H:%M:%S")
                 val = _confd.Value(now_str, _confd.C_STR)
                 dp.data_reply_value(tctx, val)
