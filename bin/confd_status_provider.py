@@ -24,33 +24,28 @@ def get_elem_callback(tctx, kp):
     return _confd.OK
 
 def run():
+    # 1. まず先に Daemon Context を作成する
+    dctx = dp.init_daemon("status_provider_daemon")
+
     ctlsock = socket.socket()
     wrksock = socket.socket()
 
     import struct
-
-    # IPは引き続き整数を要求されている可能性が高いです
     ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
 
     try:
-        # ポート番号を "4565" (文字列) に変更
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
-        print("Connected using integer IP and string port.")
-    except TypeError as e:
-        print(f"Error connecting to control socket: {e}")
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
-        print("Connected using integer IP and integer port.")
-
-    try:
-        # ポート番号を "4565" (文字列) に変更
-        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, "4565")
-        print("Connected using integer IP and string port.")
+        # 【重要】第1引数に dctx を入れる
+        # 仕様例: dp.connect(dctx, socket, type, ip, port)
+        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
+        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, ip_int, 4565)
+        print("Connected using dctx-first signature.")
     except TypeError:
-        # 万が一 IP も文字列に戻せと言われた場合
-        dp.connect(wrksock, dp.WORKER_SOCKET, '127.0.0.1', "4565")
-        print("Connected using integer IP and integer port.")
+        # もし上記でもダメな場合、以前の ip_int の位置に dctx を要求している可能性
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, dctx, ip_int, 4565)
+        dp.connect(wrksock, dp.WORKER_SOCKET, dctx, ip_int, 4565)
+        print("Connected using dctx-third signature.")
 
-    dctx = dp.init_daemon("status_provider_daemon")
+    # 2. コールバック登録
     cbs = dp.DataCallbacks()
     cbs.get_elem = get_elem_callback
     dp.register_data_cb(dctx, "server_status_cp", cbs)
@@ -66,7 +61,6 @@ def run():
     finally:
         ctlsock.close()
         wrksock.close()
-
 
 if __name__ == "__main__":
     run()
