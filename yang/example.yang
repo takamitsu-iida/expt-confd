@@ -1,6 +1,23 @@
-container server-config {
+module example {
+  namespace "http://example.com/ns/config";
+  prefix ex;
+
+  // ip-address 型を使用するために必要
+  import ietf-inet-types {
+    prefix inet;
+  }
+
+  organization "Example Corp";
+  contact "support@example.com";
+  description "A simple server configuration module.";
+  revision 2026-01-26 {
+    description "Initial revision.";
+  }
+
+  container server-config {
     leaf ip-address {
-        type inet:ip-address;
-        default "127.0.0.1";
+      type inet:ip-address;
+      default "127.0.0.1";
     }
+  }
 }
