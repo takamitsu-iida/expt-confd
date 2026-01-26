@@ -7,15 +7,16 @@ from datetime import datetime
 import select
 
 
-# --- ハッシュ値の動的取得 ---
-# 文字列からハッシュ値を計算して変数に格納
-# ※ str2hash は整数を返すので、比較しやすいように str() で囲むか、
-# 後続の path 判定を工夫します。
-UPTIME_HASH = str(_confd.str2hash("uptime"))
-LAST_CHECKED_HASH = str(_confd.str2hash("last-checked-at"))
+# 1. まず名前空間ファイルをインポート
+import confd_status_provider_ns as ns
 
+# 2. クラス内の変数からハッシュ値を「逆引き」して取得
+# 文字列比較に合わせるため str() で囲みます
+UPTIME_HASH = str(ns.ns.ex_uptime)
+LAST_CHECKED_HASH = str(ns.ns.ex_last_checked_at)
+
+# 3. 確認用プリント
 print(f"DEBUG: Loaded hashes - uptime: {UPTIME_HASH}, last-checked: {LAST_CHECKED_HASH}")
-# ---------------------------
 
 START_TIME = datetime.now()
 wrksock_global = None
