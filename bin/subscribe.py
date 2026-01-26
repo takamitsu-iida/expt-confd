@@ -160,6 +160,15 @@ def run():
 
     print("Waiting for configuration changes ...")
 
+    # シグナルハンドラを設定
+    def signal_handler(signum, frame):
+        print("\nReceived signal, stopping...")
+        cdb_sock.close()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     try:
         while True:
             # 1. 変更通知を待機
@@ -187,13 +196,12 @@ def run():
             # 3. 通知完了を報告（これを忘れると次の変更が届きません）
             cdb.sync_subscription_socket(cdb_sock, 1)
 
-    except KeyboardInterrupt:
-        print("\nStopping...")
-        cdb_sock.close()
     except Exception as e:
         print(f"Error: {e}")
         cdb_sock.close()
         raise
+    finally:
+        cdb_sock.close()
 
 def main():
     """メイン関数"""
