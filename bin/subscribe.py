@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import socket
-import _confd
 import _confd.cdb as cdb
 import sys
 import os
@@ -10,10 +9,20 @@ import atexit
 import argparse
 from pathlib import Path
 
+# スクリプトのディレクトリを基準にパスを設定
+SCRIPT_DIR = Path(__file__).resolve().parent.parent
+TMP_DIR = SCRIPT_DIR / 'tmp'
+LOG_DIR = SCRIPT_DIR / 'log'
+
+# ディレクトリを作成
+TMP_DIR.mkdir(exist_ok=True)
+LOG_DIR.mkdir(exist_ok=True)
+
 # PIDファイルのパス
-PID_FILE = '/tmp/subscribe.pid'
+PID_FILE = TMP_DIR / 'subscribe.pid'
+
 # ログファイルのパス
-LOG_FILE = '/tmp/subscribe.log'
+LOG_FILE = LOG_DIR / 'subscribe.log'
 
 def daemonize():
     """プロセスをデーモン化"""
@@ -44,12 +53,12 @@ def daemonize():
     sys.stdout.flush()
     sys.stderr.flush()
 
-    with open(LOG_FILE, 'a') as log:
+    with open(str(LOG_FILE), 'a') as log:
         os.dup2(log.fileno(), sys.stdout.fileno())
         os.dup2(log.fileno(), sys.stderr.fileno())
 
     # PIDファイルを作成
-    with open(PID_FILE, 'w') as f:
+    with open(str(PID_FILE), 'w') as f:
         f.write(str(os.getpid()))
 
     # 終了時にPIDファイルを削除

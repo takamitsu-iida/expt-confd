@@ -3,12 +3,3 @@ python-dotenv
 
 # バージョンはCMLにあわせること！
 virl2-client==2.9
-
-# Jinja2テンプレートエンジン コンフィグ生成に利用
-jinja2
-
-# YAMLファイルを読み書きするためのライブラリ ノード定義ファイル等、YAML形式を扱うために利用
-pyyaml
-
-# tabulate ラボ一覧表示に利用
-tabulate

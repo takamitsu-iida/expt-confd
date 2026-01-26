@@ -32,7 +32,7 @@ x86_64の方のzipファイルをダウンロードします。
 
 Hyper-VホストのWSL(Ubuntu)で作業を行います。
 
-このリポジトリをクローンします。
+WSL(Ubuntu)にて、このリポジトリをクローンします。
 
 ```bash
 git clone https://github.com/takamitsu-iida/expt-confd.git
@@ -44,7 +44,7 @@ git clone https://github.com/takamitsu-iida/expt-confd.git
 cd expt-confd
 ```
 
-初期セットアップスクリプトを実行して環境を整えます。
+これでCML上にラボを作成するためのPython環境を整えるために、初期セットアップスクリプトを実行します。
 
 ```bash
 bin/setup.sh
@@ -56,7 +56,7 @@ bin/setup.sh
 
 CML上にラボを作成して、Ubuntuを作成します。
 
-ラボの構成はこのようにします。
+ラボ構成はこのようにします。
 
 ![構成](/assets/lab.png)
 
@@ -64,13 +64,13 @@ CML上にラボを作成して、Ubuntuを作成します。
 
 ラボの作成は手作業だと大変なのでスクリプトで作成します。
 
-Makefileの場所に移動します。
+cmlディレクトリにMakefileを準備してありますので、移動します。
 
 ```bash
 cd cml
 ```
 
-makeコマンドで作成します。
+makeコマンドでラボを作成します。
 
 ```bash
 iida@s400win:~/git/expt-confd/cml$ make
@@ -110,7 +110,7 @@ iida@s400win:~/git/expt-confd/cml$ make terminal
 
 ## ConfDのインストール
 
-試行錯誤の結果、分かったこと。
+試行錯誤した結果、以下が判明しています。
 
 - 古いOpenSSL（バージョン 1.1）が必要
 - gccが必要
