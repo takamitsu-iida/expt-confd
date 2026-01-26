@@ -44,28 +44,31 @@ def run():
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
 
-    # 3. コールバック登録 (クラス形式)
+    # 2. 【重要】WorkerソケットをDaemon Contextに追加登録する
+    # この関数で "No descriptor set for trans" を解消できるはずです
+    try:
+        dp.add_worker_fd(dctx, wrksock)
+        print("Worker FD added successfully.")
+    except AttributeError:
+        # もし add_worker_fd がなければ、第1引数がソケットの方を試す
+        dp.add_worker_fd(wrksock, dctx)
+
+    # 3. コールバック登録
     dp.register_trans_cb(dctx, TransCallbacks())
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
     dp.register_done(dctx)
 
+    import select
     socks = [ctlsock, wrksock]
 
-    print("Status Provider is running... (Waiting for show server-status)")
+    print("Status Provider is running... (Ready for show server-status)")
 
     try:
         while True:
-            # 1. まず Control ソケットからの指示を待つ
-            # (タイムアウトなしのブロッキング)
-            dp.fd_ready(dctx, ctlsock)
-
-            # 2. Control の処理が終わった直後に Worker ソケットも動かす
-            # データの返却処理 (cb_get_elem等) はここを起点に動き出すことがあります
-            try:
-                dp.fd_ready(dctx, wrksock)
-            except _confd.error.Error:
-                # データがない時はエラーになることがあるので無視
-                pass
+            # 両方のソケットを監視（Worker側で実際のデータ要求が来るため）
+            read_socks, _, _ = select.select(socks, [], [])
+            for s in read_socks:
+                dp.fd_ready(dctx, s)
     except KeyboardInterrupt:
         pass
     finally:
