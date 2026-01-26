@@ -44,19 +44,11 @@ def run():
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
 
-    # 2. 【重要】ソケットをContextに登録する
-    # これにより "No descriptor set" エラーを解消します
-    #dp.set_fd(dctx, ctlsock)
-    #dp.set_fd(dctx, wrksock)
-
-    print("Connected and FDs are set.")
-
     # 3. コールバック登録 (クラス形式)
     dp.register_trans_cb(dctx, TransCallbacks())
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
     dp.register_done(dctx)
 
-    import select
     socks = [ctlsock, wrksock]
 
     print("Status Provider is running... (Waiting for show server-status)")
