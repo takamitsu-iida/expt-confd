@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import socket
 import confd.cdb as cdb
 import confd.maapi as maapi
