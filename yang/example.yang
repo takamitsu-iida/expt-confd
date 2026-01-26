@@ -2,6 +2,10 @@ module example {
   namespace "http://example.com/ns/config";
   prefix ex;
 
+  import tailf-common {
+    prefix tailf;
+  }
+
   // ip-address 型を使用するために必要
   import ietf-inet-types {
     prefix inet;
