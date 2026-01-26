@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import select
 import socket
 import _confd
 import _confd.dp as dp
