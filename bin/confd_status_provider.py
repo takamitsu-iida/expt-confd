@@ -24,26 +24,27 @@ def get_elem_callback(tctx, kp):
     return _confd.OK
 
 def run():
-    # 1. まず先に Daemon Context を作成する
+    # 1. Daemon Context を作成
     dctx = dp.init_daemon("status_provider_daemon")
 
     ctlsock = socket.socket()
     wrksock = socket.socket()
 
     import struct
+    # 127.0.0.1 を整数に変換
     ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
 
     try:
-        # 【重要】第1引数に dctx を入れる
-        # 仕様例: dp.connect(dctx, socket, type, ip, port)
-        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
-        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, ip_int, 4565)
-        print("Connected using dctx-first signature.")
-    except TypeError:
-        # もし上記でもダメな場合、以前の ip_int の位置に dctx を要求している可能性
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, dctx, ip_int, 4565)
-        dp.connect(wrksock, dp.WORKER_SOCKET, dctx, ip_int, 4565)
-        print("Connected using dctx-third signature.")
+        # 引数の順番を修正：
+        # 1:sock, 2:type, 3:ip(int), 4:src_addr(str/None), 5:port(int)
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "127.0.0.1", 4565)
+        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, "127.0.0.1", 4565)
+        print("Connected successfully with the 5-argument signature.")
+    except TypeError as e:
+        print(f"Still a type error: {e}")
+        # 万が一これでもダメなら、第4引数を None にしてみる
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, None, 4565)
+        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, None, 4565)
 
     # 2. コールバック登録
     cbs = dp.DataCallbacks()
