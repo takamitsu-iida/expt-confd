@@ -7,6 +7,10 @@ import _confd.dp as dp
 import time
 from datetime import datetime
 
+
+# これをスクリプトの最初の方に入れて実行してみてください
+print("DP FUNCTIONS:", [f for f in dir(dp) if 'fd' in f or 'worker' in f or 'set' in f])
+
 # 起動時刻を記録
 START_TIME = datetime.now()
 
