@@ -40,10 +40,15 @@ def run():
                 # 値の取得
                 val = maapi.get_elem(maapi_sock, th, "/server-config/ip-address")
 
-                # 【修正案A】 _confd.val2str を使って、YANGモデルの定義に基づき文字列化する
-                # 第2引数は、その値が定義されているパス（または型情報）を渡します
-                out_str = _confd.val2str(((maapi_sock, th), "/server-config/ip-address"), val)
-                print(f"Config Changed! New IP: {out_str}")
+                # デバッグプリント：オブジェクトの中身を詳しく見る
+                print(f"DEBUG: val repr -> {repr(val)}")
+
+                # もし val がタプル形式なら、その中の要素を確認
+                if isinstance(val, tuple):
+                     print(f"DEBUG: val is tuple, length: {len(val)}")
+
+                # 文字列化して出力
+                print(f"Config Changed! New IP: {str(val)}")
 
             except Exception as e:
                 # もし val2str が使えない環境（シンプルなAPI）なら、直接 val を出力
