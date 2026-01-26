@@ -9,8 +9,18 @@ from datetime import datetime
 # 起動時刻を記録
 START_TIME = datetime.now()
 
+# --- 1. トランザクション用コールバック (必須) ---
+def trans_init(tctx):
+    # トランザクション開始時の処理（今回は特に何もしない）
+    # 返り値は OK である必要があります
+    return _confd.OK
+
+def trans_finish(tctx):
+    # トランザクション終了時の処理
+    return _confd.OK
+
+# --- 2. データ取得用コールバック ---
 def get_elem_callback(tctx, kp):
-    # (既存のコールバック内容は変更なし)
     path = str(kp)
     if "uptime" in path:
         delta = datetime.now() - START_TIME
@@ -20,33 +30,37 @@ def get_elem_callback(tctx, kp):
         val = _confd.Value(now, _confd.C_STR)
     else:
         return _confd.ERR_NOT_FOUND
+
     dp.data_reply_value(tctx, val)
     return _confd.OK
 
 def run():
-    # 1. Daemon Context を作成
     dctx = dp.init_daemon("status_provider_daemon")
 
+    # ソケット作成と接続 (成功したシグネチャを使用)
     ctlsock = socket.socket()
     wrksock = socket.socket()
-
-    # 先ほど成功した接続シグネチャを使用
-    # (環境によって None が不要な場合は適宜調整してください)
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
     print("Connected successfully!")
 
-    # 2. 【修正】コールバックを辞書として定義
-    # クラスではなく、単なる dict に関数を紐付けます
-    cbs = {
+    # --- 3. トランザクションコールバックの登録 ---
+    # ここに trans_init と trans_finish を含めるのがポイントです
+    trans_cbs = {
+        'init': trans_init,
+        'finish': trans_finish
+    }
+    dp.register_trans_cb(dctx, trans_cbs)
+
+    # --- 4. データコールバックの登録 ---
+    data_cbs = {
         'get_elem': get_elem_callback
     }
+    dp.register_data_cb(dctx, "server_status_cp", data_cbs)
 
-    # 3. 登録
-    dp.register_data_cb(dctx, "server_status_cp", cbs)
     dp.register_done(dctx)
 
-    print("Status Provider is running... (Wait for 'show server-status')")
+    print("Status Provider is running... (Ready for show commands)")
 
     try:
         while True:
