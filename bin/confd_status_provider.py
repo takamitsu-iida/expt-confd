@@ -6,7 +6,7 @@ import _confd.dp as dp
 from datetime import datetime
 
 # YANGをコンパイルした時に生成された名前空間ファイルをインポート
-import server_status_ns as ns
+import confd_status_provider_ns as ns
 
 START_TIME = datetime.now()
 wrksock_global = None  # コールバックから参照できるように保持
