@@ -222,6 +222,44 @@ def setup_subscription(sock: socket.socket, paths: List[str]) -> None:
     print(f"Subscribed to {len(paths)} configuration paths")
 
 
+def read_full_configuration() -> None:
+    """
+    設定の全文を読み取って表示する
+    """
+    read_sock = socket.socket()
+    cdb.connect(read_sock, cdb.DATA_SOCKET, CONFD_HOST, CONFD_PORT)
+
+    try:
+        cdb.start_session(read_sock, cdb.RUNNING)
+
+        print("--- Full Configuration Dump ---")
+
+        # ルートから設定全体を取得
+        try:
+            # save_config()を使用して設定全体を取得
+            config_data = cdb.save_config(read_sock, cdb.RUNNING, "/")
+            print(config_data.decode('utf-8') if isinstance(config_data, bytes) else config_data)
+        except AttributeError:
+            # save_configが使えない場合は、get_objectを使用
+            try:
+                obj = cdb.get_object(read_sock, "/")
+                print(f"Configuration object: {obj}")
+            except Exception as e:
+                print(f"Could not retrieve full config: {e}")
+                # フォールバック: 監視対象パスのみ表示
+                print("\nFalling back to watched paths:")
+                for path in WATCHED_PATHS:
+                    try:
+                        val = cdb.get(read_sock, path)
+                        print(f"  {path} = {val}")
+                    except Exception as path_e:
+                        print(f"  {path} -> Error: {path_e}")
+
+        cdb.end_session(read_sock)
+    finally:
+        read_sock.close()
+
+
 def read_configuration_values(paths: List[str]) -> None:
     """
     設定値を読み取って表示する
@@ -266,13 +304,16 @@ def run_subscription_loop() -> None:
 
     try:
         while True:
-            # 変更通知を待機（ブロッキング）
+            # 変更通知を待機(ブロッキング)
             cdb.read_subscription_socket(cdb_sock)
 
             # 変更された設定値を読み取る
             read_configuration_values(WATCHED_PATHS)
 
-            # 通知処理の完了を報告（これがないと次の変更が届かない）
+            # 設定の全文を取得
+            read_full_configuration()
+
+            # 通知処理の完了を報告(これがないと次の変更が届かない)
             cdb.sync_subscription_socket(cdb_sock, 1)
 
     except KeyboardInterrupt:
@@ -303,14 +344,10 @@ Examples:
         """
     )
 
-    parser.add_argument('--start', action='store_true',
-                       help='Start the daemon')
-    parser.add_argument('--stop', action='store_true',
-                       help='Stop the daemon')
-    parser.add_argument('--status', action='store_true',
-                       help='Check daemon status')
-    parser.add_argument('--foreground', action='store_true',
-                       help='Run in foreground (for testing)')
+    parser.add_argument('--start', action='store_true', help='Start the daemon')
+    parser.add_argument('--stop', action='store_true', help='Stop the daemon')
+    parser.add_argument('--status', action='store_true', help='Check daemon status')
+    parser.add_argument('--foreground', action='store_true', help='Run in foreground (for testing)')
 
     args = parser.parse_args()
 
