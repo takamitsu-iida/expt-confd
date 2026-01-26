@@ -17,7 +17,9 @@ class TransCallbacks:
             # wrksock_global はすでに整数(int)なので、そのまま渡す
             # もし AttributeError が出たら、単に fd = wrksock_global とする
             fd = wrksock_global
-            dp.trans_set_fd(tctx, fd)
+
+            # dp.trans_set_fd(tctx, fd)
+
             print(f"DEBUG: Transaction initialized with FD {fd}")
         except Exception as e:
             print(f"DEBUG callback error: {e}")
@@ -57,33 +59,40 @@ def run():
     ctlsock = socket.socket()
     wrksock_global = socket.socket()
 
-    # 1. ソケット接続 (この API では登録より先に行う必要がある)
-    # 引数はこれまでに成功した 6引数シグネチャを想定
+    # 1. ソケット接続（順序：Control -> Worker）
     dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
     dp.connect(dctx, wrksock_global, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
-    print("Connected successfully!")
 
-    # 2. コールバック登録 (接続後に行う)
+    # 2. 【最重要】ここでWorkerソケットをシステムに教え込む
+    # trans_set_fd ではなく、daemon全体のworkerとして登録を試みる
+    try:
+        # この関数は dir(dp) にはありませんでしたが、
+        # _confd 側（dpの上位）にある可能性があります。
+        # もしエラーが出るなら、この行は飛ばして次へ。
+        dp.set_daemon_worker_fd(dctx, wrksock_global.fileno())
+    except:
+        pass
+
+    # 3. コールバック登録
     dp.register_trans_cb(dctx, TransCallbacks())
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
+
+    # 4. 登録完了を通知
     dp.register_done(dctx)
 
     import select
+    # 監視対象を明示的に整数（FD）にする
     socks = [ctlsock, wrksock_global]
+
     print("Status Provider is running... (Ready for 'show server-status')")
 
     try:
         while True:
-            # タイムアウトを短く設定し、確実に回す
-            read_socks, _, _ = select.select(socks, [], [], 0.1)
-
-            for s in read_socks:
-                try:
-                    # ここで dp.fd_ready を呼ぶことで、
-                    # ConfD が cb_get_elem を呼び出すトリガーになります
-                    dp.fd_ready(dctx, s)
-                except Exception as e:
-                    print(f"DEBUG fd_ready error: {e}")
+            # select で両方のソケットを監視
+            r, _, _ = select.select(socks, [], [])
+            for s in r:
+                # fd_ready には dctx と「反応したソケット」を渡す
+                dp.fd_ready(dctx, s)
     except KeyboardInterrupt:
         pass
 
