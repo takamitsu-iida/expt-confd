@@ -24,18 +24,21 @@ class TransCallbacks:
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
+            # kp（キーパス）を文字列化すると /tag<ID>/tag<ID> になります
             path = str(kp)
             print(f"DEBUG: Requested path: {path}")
 
-            # 返す値の型を C_STR (文字列) として定義
-            if "uptime" in path:
-                val = _confd.Value("1 day, 02:03:04", _confd.C_STR)
+            # 判定ロジック：
+            # パスの中に uptime や last-checked-at が含まれているか、
+            # あるいは単に「2番目のタグなら uptime」といった簡易判定にします
+            if "uptime" in path or path.endswith("1268395647>"): # IDは環境で変わるため文字列検索が安全
+                val = _confd.Value("Up and running!", _confd.C_STR)
             elif "last-checked-at" in path:
-                val = _confd.Value("12:00:00", _confd.C_STR)
+                val = _confd.Value(datetime.now().strftime("%H:%M:%S"), _confd.C_STR)
             else:
-                return _confd.ERR_NOT_FOUND
+                # 修正：ERR_NOT_FOUND ではなく NOT_FOUND
+                return _confd.NOT_FOUND
 
-            # 返信。引数の順序が (tctx, value) であることを確認
             dp.data_reply_value(tctx, val)
             return _confd.OK
         except Exception as e:
