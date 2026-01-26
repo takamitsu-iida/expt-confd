@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
 
-"""
-ConfDステータス情報提供デーモン
-このスクリプトはConfDのデータプロバイダとして動作し、
-サーバーの稼働時間や最終チェック時刻などのステータス情報を提供します。
-"""
-
-
 import socket
 import _confd
 import _confd.dp as dp
@@ -17,12 +10,8 @@ from datetime import datetime
 START_TIME = datetime.now()
 
 def get_elem_callback(tctx, kp):
-    """
-    ConfDからのデータ要求(get_elem)に対する応答
-    """
+    # (既存のコールバック内容は変更なし)
     path = str(kp)
-    print(f"DEBUG: Received request for path: {path}")
-
     if "uptime" in path:
         delta = datetime.now() - START_TIME
         val = _confd.Value(str(delta).split('.')[0], _confd.C_STR)
@@ -31,37 +20,41 @@ def get_elem_callback(tctx, kp):
         val = _confd.Value(now, _confd.C_STR)
     else:
         return _confd.ERR_NOT_FOUND
-
-    # 値を返却
     dp.data_reply_value(tctx, val)
     return _confd.OK
 
 def run():
-    # 1. ソケットの作成と接続
     ctlsock = socket.socket()
     wrksock = socket.socket()
-    dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', 4565)
-    dp.connect(wrksock, dp.WORKER_SOCKET, '127.0.0.1', 4565)
 
-    # 2. デーモンの初期化
+    # 【重要修正】 '127.0.0.1' をバイナリ形式に変換
+    # 環境によっては、この binary_ip を使う必要があります
+    # もしこれでもダメな場合は、単純に '127.0.0.1' の代わりに 0x7f000001 (整数) を試します
+    try:
+        # まずは文字列で試す（以前成功したパターン）
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', 4565)
+        dp.connect(wrksock, dp.WORKER_SOCKET, '127.0.0.1', 4565)
+    except TypeError:
+        # 文字列がダメなら、整数値（ネットワークバイトオーダ）を試す
+        import struct
+        # '127.0.0.1' を整数 2130706433 に変換
+        ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
+        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, 4565)
+
     dctx = dp.init_daemon("status_provider_daemon")
-
-    # 3. コールバックの登録
     cbs = dp.DataCallbacks()
     cbs.get_elem = get_elem_callback
-    # 第2引数はYANGの callpoint 名と一致させること
     dp.register_data_cb(dctx, "server_status_cp", cbs)
     dp.register_done(dctx)
 
-    print("Status Provider is running... (Press Ctrl+C to stop)")
+    print("Status Provider is running... (Wait for 'show server-status')")
 
     try:
         while True:
-            # ConfDからのリクエスト（Control Query）を待機
-            # 内部的に select() が使われ、リクエストが来るまでブロックします
             dp.read_control_query(ctlsock, dctx)
     except KeyboardInterrupt:
-        print("\nStopping...")
+        pass
     finally:
         ctlsock.close()
         wrksock.close()
