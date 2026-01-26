@@ -57,12 +57,13 @@ def run():
 
     try:
         while True:
-            # 1. read_control_query の代わりに fd_ready を試す
+            # 引数の順番を入替: (dctx, ctlsock)
+            # ConfDが dctx を使ってソケットを処理しようとするため、dctxが先です
             try:
-                dp.fd_ready(ctlsock, dctx)
-            except AttributeError:
-                # 2. もし fd_ready もなければ、action_fd_ready を試す
-                dp.action_fd_ready(ctlsock, dctx)
+                dp.fd_ready(dctx, ctlsock)
+            except TypeError:
+                # 万が一、ソケット番号(int)だけを欲しがる場合はこちら
+                dp.fd_ready(dctx, ctlsock.fileno())
 
     except KeyboardInterrupt:
         pass
