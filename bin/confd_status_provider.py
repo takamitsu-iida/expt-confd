@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 
-import select
 import socket
 import _confd
 import _confd.dp as dp
-import time
 from datetime import datetime
 
-
-# これをスクリプトの最初の方に入れて実行してみてください
-print("DP FUNCTIONS:", [f for f in dir(dp) if 'fd' in f or 'worker' in f or 'set' in f])
-
-# 起動時刻を記録
 START_TIME = datetime.now()
+wrksock_global = None  # コールバックから参照できるように保持
 
-# --- 1. コールバック用クラスの定義 ---
 class TransCallbacks:
-    # 辞書ではなくメソッドとして定義
     def cb_init(self, tctx):
+        # --- ここが最重要：Workerソケットをトランザクションに紐付ける ---
+        try:
+            dp.trans_set_fd(tctx, wrksock_global)
+        except Exception as e:
+            print(f"DEBUG: Failed to set trans FD: {e}")
         return _confd.OK
 
     def cb_finish(self, tctx):
@@ -39,41 +36,38 @@ class DataCallbacks:
         return _confd.OK
 
 def run():
-    # 1. 先に Daemon Context を作成
+    global wrksock_global
     dctx = dp.init_daemon("status_provider_daemon")
 
-    # 2. 【重要】接続の前にコールバックを登録してしまう
+    ctlsock = socket.socket()
+    wrksock_global = socket.socket()
+
+    # 1. ソケット接続 (この API では登録より先に行う必要がある)
+    # 引数はこれまでに成功した 6引数シグネチャを想定
+    dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
+    dp.connect(dctx, wrksock_global, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
+    print("Connected successfully!")
+
+    # 2. コールバック登録 (接続後に行う)
     dp.register_trans_cb(dctx, TransCallbacks())
     dp.register_data_cb(dctx, "server_status_cp", DataCallbacks())
-
-    # 3. ここでソケット作成と接続
-    ctlsock = socket.socket()
-    wrksock = socket.socket()
-    dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
-    dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
-
-    # 4. register_done を呼ぶ（ここで内部的にWorkerが紐付くことが多い）
     dp.register_done(dctx)
 
-    print("Registration and Connection completed.")
-
     import select
-    socks = [ctlsock, wrksock]
-    print("Status Provider is running... (Ready for show server-status)")
+    socks = [ctlsock, wrksock_global]
+    print("Status Provider is running... (Ready for 'show server-status')")
 
     try:
         while True:
             read_socks, _, _ = select.select(socks, [], [])
             for s in read_socks:
-                # エラーが出たときの fd_ready の呼び出し
+                # Daemon Context とソケットを渡してリクエストを処理
                 dp.fd_ready(dctx, s)
     except KeyboardInterrupt:
         pass
     finally:
         ctlsock.close()
-        wrksock.close()
-
-
+        wrksock_global.close()
 
 if __name__ == "__main__":
     run()
