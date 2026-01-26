@@ -249,3 +249,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+root@confd:~/expt-confd# bin/subscribe.py --foreground
+Running in foreground mode...
+Waiting for configuration changes ...
+Error in subscription loop: system call failed (24): Failed to read 4 bytes from ConfD: Resource temporarily unavailable
+Closing connection...
