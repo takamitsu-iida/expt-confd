@@ -14,17 +14,18 @@ wrksock_global = None  # コールバックから参照できるように保持
 class TransCallbacks:
     def cb_init(self, tctx):
         try:
-            # wrksock_global はすでに整数(int)なので、そのまま渡す
-            # もし AttributeError が出たら、単に fd = wrksock_global とする
-            fd = wrksock_global
+            # コメントアウトを解除し、この順序で呼び出す
+            # 多くの ConfD バージョンでは (tctx, fd) です
+            dp.trans_set_fd(tctx, wrksock_global)
 
-            # dp.trans_set_fd(tctx, fd)
+            # もし上記で再びエラーが出る場合は、この順序(fd, tctx)も試してください
+            # dp.trans_set_fd(wrksock_global, tctx)
 
-            print(f"DEBUG: Transaction initialized with FD {fd}")
+            print(f"DEBUG: Transaction initialized")
+            return _confd.OK
         except Exception as e:
             print(f"DEBUG callback error: {e}")
             return _confd.ERR
-        return _confd.OK
 
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
@@ -81,18 +82,23 @@ def run():
     dp.register_done(dctx)
 
     import select
+
     # 監視対象を明示的に整数（FD）にする
-    socks = [ctlsock, wrksock_global]
+    # socks = [ctlsock, wrksock_global]
+    # 修正後: ファイル記述子(int)のリストにする
+    socks = [ctlsock.fileno(), wrksock_global.fileno()]
+
+    # 辞書を作っておくと、fd からソケットオブジェクトを逆引きできて便利です
+    fd_map = {ctlsock.fileno(): ctlsock, wrksock_global.fileno(): wrksock_global}
 
     print("Status Provider is running... (Ready for 'show server-status')")
 
     try:
         while True:
-            # select で両方のソケットを監視
             r, _, _ = select.select(socks, [], [])
-            for s in r:
-                # fd_ready には dctx と「反応したソケット」を渡す
-                dp.fd_ready(dctx, s)
+            for fd in r:
+                # 反応した FD に対応するソケットを fd_ready に渡す
+                dp.fd_ready(dctx, fd_map[fd])
     except KeyboardInterrupt:
         pass
 
