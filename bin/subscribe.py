@@ -31,34 +31,24 @@ def run():
 
     try:
         while True:
-            # 変更通知の待機
-            cdb.read_subscription_socket(cdb_sock)
+            # 1. 変更通知の待機
+            sub_ids = cdb.read_subscription_socket(cdb_sock)
 
-            # トランザクション開始 (1=RUNNING, 1=READ)
-            th = maapi.start_trans(maapi_sock, 1, 1)
+            # 2. CDBから直接値を読み取る (新しいソケットを毎回開かなくてOK)
+            # 読み取り専用のセッションを開始
+            # cdb.DATA_SOCKET (1) を使い、cdb.RUNNING (1) から取得
+            read_sock = socket.socket()
+            cdb.connect(read_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
+
             try:
-                # 値の取得
-                val = maapi.get_elem(maapi_sock, th, "/server-config/ip-address")
-
-                # デバッグプリント：オブジェクトの中身を詳しく見る
+                # cdb.get(socket, path) で直接値を取得
+                val = cdb.get(read_sock, "/server-config/ip-address")
                 print(f"DEBUG: val repr -> {repr(val)}")
-
-                # もし val がタプル形式なら、その中の要素を確認
-                if isinstance(val, tuple):
-                     print(f"DEBUG: val is tuple, length: {len(val)}")
-
-                # 文字列化して出力
                 print(f"Config Changed! New IP: {str(val)}")
-
-            except Exception as e:
-                # もし val2str が使えない環境（シンプルなAPI）なら、直接 val を出力
-                print(f"Raw Value: {val}, Type: {type(val)}")
-
-
             finally:
-                maapi.finish_trans(maapi_sock, th)
+                read_sock.close()
 
-            # 通知完了の同期 (1=DONE_PRIORITY)
+            # 3. 通知完了の同期
             cdb.sync_subscription_socket(cdb_sock, 1)
 
     except KeyboardInterrupt:
