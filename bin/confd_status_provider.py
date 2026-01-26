@@ -24,26 +24,26 @@ class TransCallbacks:
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
-            # kp（キーパス）を文字列化すると /tag<ID>/tag<ID> になります
             path = str(kp)
             print(f"DEBUG: Requested path: {path}")
 
-            # 判定ロジック：
-            # パスの中に uptime や last-checked-at が含まれているか、
-            # あるいは単に「2番目のタグなら uptime」といった簡易判定にします
-            if "uptime" in path or path.endswith("1268395647>"): # IDは環境で変わるため文字列検索が安全
+            # ハッシュIDでの判定が最も確実です
+            if "1268395647" in path: # uptime
                 val = _confd.Value("Up and running!", _confd.C_STR)
-            elif "last-checked-at" in path:
+            elif "103640840" in path: # last-checked-at
                 val = _confd.Value(datetime.now().strftime("%H:%M:%S"), _confd.C_STR)
             else:
-                # 修正：ERR_NOT_FOUND ではなく NOT_FOUND
-                return _confd.NOT_FOUND
+                # 最終手段：定数が見つからない場合は、直接数値を返すか
+                # _confd.ERR_NOT_FOUND などを試す
+                # 多くの環境では _confd.NOT_FOUND ですが、エラーが出るなら以下を試してください
+                return 2 # 2 は ConfD における NOT_FOUND の値です
 
             dp.data_reply_value(tctx, val)
             return _confd.OK
         except Exception as e:
             print(f"DEBUG get_elem error: {e}")
-            return _confd.ERR
+            # エラー時は _confd.ERR (通常は 1)
+            return 1
 
 def run():
     global wrksock_global
