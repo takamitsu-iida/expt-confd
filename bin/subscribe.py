@@ -1,49 +1,45 @@
 #!/usr/bin/env python3
 
 import socket
-import confd.cdb as cdb
-import confd.maapi as maapi
+import _confd
+import _confd.cdb as cdb
+import _confd.maapi as maapi
 
 def run():
-    # 1. ソケットを作成して接続
-    # CDB通知用
+    # 1. ソケットの作成
     cdb_sock = socket.socket()
-    # MAAPI用
     maapi_sock = socket.socket()
 
-    # 2. クラスをインスタンス化（モジュール名と同じ小文字の cdb.cdb / maapi.maapi）
-    # APIのバージョンによっては、ここがインスタンス化の入り口になります
-    c = cdb.cdb(cdb_sock)
-    m = maapi.maapi(maapi_sock)
+    # 2. 接続 (低レイヤAPIの _confd.cdb.connect を使用)
+    # 引数: (socket, type, ip, port)
+    cdb.connect(cdb_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
+    maapi.connect(maapi_sock, '127.0.0.1', 4565)
 
-    # 3. インスタンスメソッドとしてconnectを呼び出し
-    # 第2引数はCDB_DATA_SOCKET (通常 1)
-    c.connect('127.0.0.1', 4565, 1)
-    m.connect('127.0.0.1', 4565)
-
-    # 4. 購読の登録
-    # 第1引数: 優先度(1), 第2引数: ID(0), 第3引数: パス
-    c.subscribe(1, 0, '/server-config')
-    c.subscribe_done()
+    # 3. 購読の登録
+    # 引数: (socket, priority, 0, path)
+    sub_id = cdb.subscribe(cdb_sock, 1, 0, '/server-config')
+    cdb.subscribe_done(cdb_sock)
 
     print("Waiting for configuration changes...")
 
     try:
         while True:
-            # 5. 通知の待機 (ソケットをセレクト)
-            c.read_subscription_socket()
+            # 4. 通知の待機
+            # 変更があった購読IDのリストが返ります
+            sub_ids = cdb.read_subscription_socket(cdb_sock)
 
-            # 6. 変更内容の読み取り
-            # cdb.RUNNING=1, maapi.READ=1
-            th = m.start_trans(1, 1)
+            # 5. 変更内容の読み取り (MAAPI)
+            # 1 = RUNNING, 1 = READ
+            th = maapi.start_trans(maapi_sock, 1, 1)
             try:
-                val = m.get_elem(th, "/server-config/ip-address")
-                print(f"Config Changed! New IP: {val}")
+                # get_elem は内部形式の Value を返すため str() で変換
+                val = maapi.get_elem(maapi_sock, th, "/server-config/ip-address")
+                print(f"Config Changed! New IP: {str(val)}")
             finally:
-                m.finish_trans(th)
+                maapi.finish_trans(maapi_sock, th)
 
-            # 7. 通知の完了報告 (cdb.DONE_PRIORITY=1)
-            c.sync_subscription_socket(1)
+            # 6. 通知の完了報告 (1 = DONE_PRIORITY)
+            cdb.sync_subscription_socket(cdb_sock, 1)
 
     except KeyboardInterrupt:
         print("\nStopping subscriber...")
