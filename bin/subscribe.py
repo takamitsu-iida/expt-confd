@@ -5,11 +5,6 @@ import _confd
 import _confd.cdb as cdb
 import _confd.maapi as maapi
 
-import socket
-import _confd
-import _confd.cdb as cdb
-import _confd.maapi as maapi
-
 def run():
     cdb_sock = socket.socket()
     maapi_sock = socket.socket()
@@ -17,16 +12,17 @@ def run():
     cdb.connect(cdb_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
     maapi.connect(maapi_sock, '127.0.0.1', 4565)
 
-    # 【修正】_confd.Address を使わず、直接タプルでアドレスを指定
-    # 形式: (socket.AF_INET, '127.0.0.1')
-    # ポートを含める必要がある場合は (socket.AF_INET, '127.0.0.1', 0)
-    src_addr = (socket.AF_INET, '127.0.0.1')
+    # 【最終修正】第5引数はタプルではなく、単なる文字列 "127.0.0.1"
+    # 第6引数 (proto) も、このシンプル版APIでは不要、あるいは文字列を期待する可能性があります。
+    # まずは引数5つで試します。
+    src_addr = '127.0.0.1'
 
     try:
-        maapi.start_user_session(maapi_sock, 'admin', 'system', ['admin'], src_addr, _confd.PROTO_TCP)
-    except TypeError:
-        # 万が一、引数の数がさらに多い・少ない場合のためのフォールバック
+        # 成功率が最も高い構成：(socket, user, context, groups, ip_string)
         maapi.start_user_session(maapi_sock, 'admin', 'system', ['admin'], src_addr)
+    except TypeError:
+        # もし引数が足りないと言われた場合のみ、プロトコルを追加
+        maapi.start_user_session(maapi_sock, 'admin', 'system', ['admin'], src_addr, 1) # 1 = PROTO_TCP
 
     sub_id = cdb.subscribe(cdb_sock, 1, 0, '/server-config')
     cdb.subscribe_done(cdb_sock)
@@ -35,18 +31,20 @@ def run():
 
     try:
         while True:
-            sub_ids = cdb.read_subscription_socket(cdb_sock)
+            # 変更通知の待機
+            cdb.read_subscription_socket(cdb_sock)
 
-            # RUNNING=1, READ=1
+            # トランザクション開始 (1=RUNNING, 1=READ)
             th = maapi.start_trans(maapi_sock, 1, 1)
             try:
+                # 値の取得
                 val = maapi.get_elem(maapi_sock, th, "/server-config/ip-address")
-                # val がオブジェクトなら str()、そうでなければそのまま表示
-                print(f"Config Changed! New IP: {val}")
+                # val は ConfD の内部型オブジェクトなので、表示用に文字列化
+                print(f"Config Changed! New IP: {str(val)}")
             finally:
                 maapi.finish_trans(maapi_sock, th)
 
-            # DONE_PRIORITY=1
+            # 通知完了の同期 (1=DONE_PRIORITY)
             cdb.sync_subscription_socket(cdb_sock, 1)
 
     except KeyboardInterrupt:
