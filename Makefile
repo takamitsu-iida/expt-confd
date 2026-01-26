@@ -25,4 +25,4 @@ start:
 	confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard
 
 stop:
-	confd --stop
+	confd --stop || true
