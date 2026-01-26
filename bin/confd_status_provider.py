@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import select
 import socket
 import _confd
 import _confd.dp as dp
@@ -55,15 +56,23 @@ def run():
 
     print("Status Provider is running... (Waiting for show server-status)")
 
+    # 監視対象のソケットリスト
+    # ctlsock: ConfDからの命令を受ける
+    # wrksock: 実際のデータを流す
+    socks = [ctlsock, wrksock]
+
     try:
         while True:
-            # 引数の順番を入替: (dctx, ctlsock)
-            # ConfDが dctx を使ってソケットを処理しようとするため、dctxが先です
-            try:
-                dp.fd_ready(dctx, ctlsock)
-            except TypeError:
-                # 万が一、ソケット番号(int)だけを欲しがる場合はこちら
-                dp.fd_ready(dctx, ctlsock.fileno())
+            # どちらかのソケットにデータが来るまで待機
+            read_socks, _, _ = select.select(socks, [], [])
+
+            for s in read_socks:
+                try:
+                    # 届いたソケットと dctx を渡して処理
+                    # この API バージョンでは fd_ready が全てをハンドルします
+                    dp.fd_ready(dctx, s)
+                except Exception as e:
+                    print(f"Error processing request: {e}")
 
     except KeyboardInterrupt:
         pass
