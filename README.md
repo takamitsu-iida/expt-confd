@@ -233,6 +233,12 @@ root@confd:/tmp/confd#
 
 インストールできました。
 
+作業用ディレクトリ /tmp/confd は不要ですので、削除します。
+
+```bash
+rm -rf /tmp/confd
+```
+
 /usr/lib/confd/confdrc を反映するために一度ログアウトします。
 
 もう一度ログインして、ルート特権を取ります。
