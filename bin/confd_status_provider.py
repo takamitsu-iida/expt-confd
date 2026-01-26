@@ -27,18 +27,17 @@ def run():
     ctlsock = socket.socket()
     wrksock = socket.socket()
 
-    # 【重要修正】 '127.0.0.1' をバイナリ形式に変換
-    # 環境によっては、この binary_ip を使う必要があります
-    # もしこれでもダメな場合は、単純に '127.0.0.1' の代わりに 0x7f000001 (整数) を試します
+    import struct
+    # '127.0.0.1' をネットワークバイトオーダの整数に変換
+    ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
+
     try:
-        # まずは文字列で試す（以前成功したパターン）
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', 4565)
-        dp.connect(wrksock, dp.WORKER_SOCKET, '127.0.0.1', 4565)
+        # 引数3 (IP) は整数 ip_int
+        # 引数4 (src_addr) は None (文字列を期待されているが、通常は不要)
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565, None)
+        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, 4565, None)
     except TypeError:
-        # 文字列がダメなら、整数値（ネットワークバイトオーダ）を試す
-        import struct
-        # '127.0.0.1' を整数 2130706433 に変換
-        ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
+        # もし引数の数が合わないと言われたら、src_addr を完全に抜く
         dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
         dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, 4565)
 
@@ -58,6 +57,8 @@ def run():
     finally:
         ctlsock.close()
         wrksock.close()
+
+
 
 if __name__ == "__main__":
     run()
