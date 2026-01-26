@@ -57,7 +57,13 @@ def run():
 
     try:
         while True:
-            dp.read_control_query(ctlsock, dctx)
+            # 1. read_control_query の代わりに fd_ready を試す
+            try:
+                dp.fd_ready(ctlsock, dctx)
+            except AttributeError:
+                # 2. もし fd_ready もなければ、action_fd_ready を試す
+                dp.action_fd_ready(ctlsock, dctx)
+
     except KeyboardInterrupt:
         pass
     finally:
