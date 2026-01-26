@@ -63,16 +63,17 @@ def run():
 
     try:
         while True:
-            # タイムアウトを設定して確実にループを回す
-            read_socks, _, _ = select.select(socks, [], [], 1.0)
+            # 1. まず Control ソケットからの指示を待つ
+            # (タイムアウトなしのブロッキング)
+            dp.fd_ready(dctx, ctlsock)
 
-            for s in read_socks:
-                try:
-                    # 正しい引数順序で処理
-                    dp.fd_ready(dctx, s)
-                except Exception as e:
-                    # エラーが出てもループを止めない
-                    print(f"DEBUG Error: {e}")
+            # 2. Control の処理が終わった直後に Worker ソケットも動かす
+            # データの返却処理 (cb_get_elem等) はここを起点に動き出すことがあります
+            try:
+                dp.fd_ready(dctx, wrksock)
+            except _confd.error.Error:
+                # データがない時はエラーになることがあるので無視
+                pass
     except KeyboardInterrupt:
         pass
     finally:
