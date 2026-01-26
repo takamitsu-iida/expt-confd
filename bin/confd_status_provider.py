@@ -35,7 +35,7 @@ def run():
 
     try:
         # ポート番号を "4565" (文字列) に変更
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
+        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, 4565)
         print("Connected using integer IP and string port.")
     except TypeError:
         # 万が一 IP も文字列に戻せと言われた場合
