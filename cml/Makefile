@@ -9,7 +9,8 @@ LAB_TITLE = ConfD Lab
 # 作成するラボのデスクリプション
 DESCRIPTION = ConfD lab for testing
 
-SCRIPT = bin/cml_create_confd_host.py
+SCRIPT = ../bin/cml_create_confd_host.py
+TERMINAL = ../bin/open_terminal.sh
 
 create: ## ラボをCML上に作成する
 	$(SCRIPT) --create --title "$(LAB_TITLE)" --description "$(DESCRIPTION)"
@@ -24,4 +25,4 @@ delete: ## ラボを削除する
 	$(SCRIPT) --delete --title "$(LAB_TITLE)"
 
 terminal: ## ルータのコンソールに接続する
-	bin/open_terminal.sh 7000
+	$(TERMINAL) 7000
