@@ -24,32 +24,29 @@ def get_elem_callback(tctx, kp):
     return _confd.OK
 
 def run():
-    # 1. 最初に Daemon Context を作成
+    # 1. Daemon Context を作成
     dctx = dp.init_daemon("status_provider_daemon")
 
     ctlsock = socket.socket()
     wrksock = socket.socket()
 
-    # 接続テスト：引数の順番を大胆に入れ替えます
-    # 1:dctx, 2:sock, 3:type, 4:ip(str), 5:port(int), 6:src_addr(None)
-    try:
-        print("Trying signature: (dctx, sock, type, ip_str, port_int, None)")
-        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
-        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
-    except TypeError as e:
-        print(f"6-arg failed: {e}")
-        # もし引数の数が多いと言われたら、最後を削る
-        print("Trying signature: (dctx, sock, type, ip_str, port_int)")
-        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565)
-        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565)
+    # 先ほど成功した接続シグネチャを使用
+    # (環境によって None が不要な場合は適宜調整してください)
+    dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
+    dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
+    print("Connected successfully!")
 
-    # 2. コールバック登録
-    cbs = dp.DataCallbacks()
-    cbs.get_elem = get_elem_callback
+    # 2. 【修正】コールバックを辞書として定義
+    # クラスではなく、単なる dict に関数を紐付けます
+    cbs = {
+        'get_elem': get_elem_callback
+    }
+
+    # 3. 登録
     dp.register_data_cb(dctx, "server_status_cp", cbs)
     dp.register_done(dctx)
 
-    print("Status Provider is running...")
+    print("Status Provider is running... (Wait for 'show server-status')")
 
     try:
         while True:
