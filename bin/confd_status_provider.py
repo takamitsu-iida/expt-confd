@@ -32,13 +32,12 @@ def run():
     # IPは引き続き整数を要求されている可能性が高いです
     ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
 
-
     try:
         # ポート番号を "4565" (文字列) に変更
         dp.connect(ctlsock, dp.CONTROL_SOCKET, '127.0.0.1', "4565")
         print("Connected using integer IP and string port.")
-    except TypeError:
-        # 万が一 IP も文字列に戻せと言われた場合
+    except TypeError as e:
+        print(f"Error connecting to control socket: {e}")
         dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "4565")
         print("Connected using integer IP and integer port.")
 
