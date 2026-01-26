@@ -10,10 +10,3 @@ export PATH="$(pwd)/bin:$PATH"
 
 # Set the default browser to wslview
 export BROWSER=/usr/bin/wslview
-
-#
-# ConfD
-#
-if [ -f /usr/lib/confd/confdrc ]; then
-  export PYTHONPATH=$PYTHONPATH:/usr/lib/confd/src/confd/pyapi
-fi
