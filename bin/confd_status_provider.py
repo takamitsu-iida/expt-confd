@@ -46,8 +46,8 @@ def run():
 
     # 2. 【重要】ソケットをContextに登録する
     # これにより "No descriptor set" エラーを解消します
-    dp.set_fd(dctx, ctlsock)
-    dp.set_fd(dctx, wrksock)
+    #dp.set_fd(dctx, ctlsock)
+    #dp.set_fd(dctx, wrksock)
 
     print("Connected and FDs are set.")
 
