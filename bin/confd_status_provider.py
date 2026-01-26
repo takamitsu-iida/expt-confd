@@ -80,22 +80,26 @@ def run():
         ctl_fd = ctlsock
         wrk_fd = wrksock_global
 
-    socks = [ctl_fd, wrk_fd]
-    print(f"Status Provider is running... (CTL FD: {ctl_fd}, WRK FD: {wrk_fd})")
+    # socks には整数を入れる (select 用)
+    socks = [ctlsock.fileno(), wrksock_global.fileno()]
+
+    # FD から元のソケットオブジェクトを引けるように辞書を作る
+    fd_to_sock = {
+        ctlsock.fileno(): ctlsock,
+        wrksock_global.fileno(): wrksock_global
+    }
+
+    print(f"Status Provider is running... (CTL FD: {ctlsock.fileno()}, WRK FD: {wrksock_global.fileno()})")
 
     try:
         while True:
-            # タイムアウト(1秒)を設定して、ループが死んでいないか確認しやすくする
             r, _, _ = select.select(socks, [], [], 1.0)
-            if not r:
-                continue # タイムアウト時は何もしない
-
             for fd in r:
-                # ソケットオブジェクトではなく、整数FDをそのまま渡す
-                # これにより、API内部での型変換トラブルを回避します
-                dp.fd_ready(dctx, fd)
+                # 反応した FD に対応する「ソケットオブジェクト」を取り出す
+                sock_obj = fd_to_sock[fd]
+                # ここでオブジェクトを渡せば、内部の .fileno() 呼び出しが成功します
+                dp.fd_ready(dctx, sock_obj)
     except KeyboardInterrupt:
         pass
-
 if __name__ == "__main__":
     run()
