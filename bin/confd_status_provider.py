@@ -47,10 +47,16 @@ def run():
     # --- 3. トランザクションコールバックの登録 ---
     # ここに trans_init と trans_finish を含めるのがポイントです
     trans_cbs = {
-        'init': trans_init,
-        'finish': trans_finish
+        'cb_init': trans_init,
+        'cb_finish': trans_finish
     }
-    dp.register_trans_cb(dctx, trans_cbs)
+
+    try:
+        dp.register_trans_cb(dctx, trans_cbs)
+    except Exception:
+        # 万が一 cb_finish でエラーが出た場合は 'finish' に戻してください
+        trans_cbs = {'cb_init': trans_init, 'finish': trans_finish}
+        dp.register_trans_cb(dctx, trans_cbs)
 
     # --- 4. データコールバックの登録 ---
     data_cbs = {
