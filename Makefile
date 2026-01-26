@@ -17,6 +17,7 @@ all: $(FXS_FILES)
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
 	mkdir -p $(LOADPATH_DIR)
 	confdc -c $< -o $@ --yangpath $(CONFD_DIR)/src/confd/standard
+	# Python 用の定義ファイルを書き出す
 	confdc --emit-python bin/confd_status_provider.py loadpath/example.fxs
 
 clean:

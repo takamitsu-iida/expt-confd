@@ -24,8 +24,6 @@ class TransCallbacks:
             return _confd.ERR
         return _confd.OK
 
-import server_status_ns as ns
-
 class DataCallbacks:
     def cb_get_elem(self, tctx, kp):
         try:
