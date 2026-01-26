@@ -24,27 +24,24 @@ def get_elem_callback(tctx, kp):
     return _confd.OK
 
 def run():
-    # 1. Daemon Context を作成
+    # 1. 最初に Daemon Context を作成
     dctx = dp.init_daemon("status_provider_daemon")
 
     ctlsock = socket.socket()
     wrksock = socket.socket()
 
-    import struct
-    # 127.0.0.1 を整数に変換
-    ip_int = struct.unpack("!I", socket.inet_aton('127.0.0.1'))[0]
-
+    # 接続テスト：引数の順番を大胆に入れ替えます
+    # 1:dctx, 2:sock, 3:type, 4:ip(str), 5:port(int), 6:src_addr(None)
     try:
-        # 引数の順番を修正：
-        # 1:sock, 2:type, 3:ip(int), 4:src_addr(str/None), 5:port(int)
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, "127.0.0.1", 4565)
-        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, "127.0.0.1", 4565)
-        print("Connected successfully with the 5-argument signature.")
+        print("Trying signature: (dctx, sock, type, ip_str, port_int, None)")
+        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565, None)
+        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565, None)
     except TypeError as e:
-        print(f"Still a type error: {e}")
-        # 万が一これでもダメなら、第4引数を None にしてみる
-        dp.connect(ctlsock, dp.CONTROL_SOCKET, ip_int, None, 4565)
-        dp.connect(wrksock, dp.WORKER_SOCKET, ip_int, None, 4565)
+        print(f"6-arg failed: {e}")
+        # もし引数の数が多いと言われたら、最後を削る
+        print("Trying signature: (dctx, sock, type, ip_str, port_int)")
+        dp.connect(dctx, ctlsock, dp.CONTROL_SOCKET, "127.0.0.1", 4565)
+        dp.connect(dctx, wrksock, dp.WORKER_SOCKET, "127.0.0.1", 4565)
 
     # 2. コールバック登録
     cbs = dp.DataCallbacks()
@@ -52,7 +49,7 @@ def run():
     dp.register_data_cb(dctx, "server_status_cp", cbs)
     dp.register_done(dctx)
 
-    print("Status Provider is running... (Wait for 'show server-status')")
+    print("Status Provider is running...")
 
     try:
         while True:
