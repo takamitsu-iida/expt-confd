@@ -18,29 +18,35 @@ def run():
 
     try:
         while True:
-            # 2. 通知を待機
-            cdb.read_subscription_socket(cdb_sock)
 
-            # 3. データの読み取り用ソケットを別途作成
+            # 1. 変更通知の待機
+            sub_ids = cdb.read_subscription_socket(cdb_sock)
+
+            # 2. データの読み取り用ソケット
             read_sock = socket.socket()
             cdb.connect(read_sock, cdb.DATA_SOCKET, '127.0.0.1', 4565)
 
             try:
-                # 【ここが重要】CDBセッションを開始する
-                # 引数: (socket, type=cdb.RUNNING)
                 cdb.start_session(read_sock, cdb.RUNNING)
 
-                # 値の取得
-                val = cdb.get(read_sock, "/server-config/ip-address")
-                print(f"DEBUG: val repr -> {repr(val)}")
-                print(f"Config Changed! New IP: {str(val)}")
+                # 【ここがポイント】変更された差分をリストで取得
+                # 引数: (socket, subscription_id, flags)
+                # sub_ids[0] には現在通知された購読IDが入っています
+                modifications = cdb.get_modifications(read_sock, sub_ids[0], 0)
 
-                # セッションを終了
+                for mod in modifications:
+                    # mod はタグのリスト(パス)と値のオブジェクトで構成されます
+                    # パスを文字列に変換
+                    path_str = _confd.hash2str(mod.tag) # ハッシュ形式の場合
+                    # 実際には mod オブジェクトの構造は環境に依存しますが、
+                    # 一般的には mod.tag (パス) と mod.val (値) を持ちます
+                    print(f"Diff Detected! Path: {mod.tag}, New Value: {mod.val}")
+
                 cdb.end_session(read_sock)
             finally:
                 read_sock.close()
 
-            # 4. 通知完了の同期
+            # 3. 通知完了の同期
             cdb.sync_subscription_socket(cdb_sock, 1)
 
     except KeyboardInterrupt:
