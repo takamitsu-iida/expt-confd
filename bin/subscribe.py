@@ -29,18 +29,19 @@ def run():
             try:
                 cdb.start_session(read_sock, cdb.RUNNING)
 
-                # 【ここがポイント】変更された差分をリストで取得
-                # 引数: (socket, subscription_id, flags)
-                # sub_ids[0] には現在通知された購読IDが入っています
-                modifications = cdb.get_modifications(read_sock, sub_ids[0], 0)
+                # 【修正】引数にパスを追加: (socket, sub_id, flags, path)
+                # 購読したパス、あるいはその配下の特定のパスを指定します
+                modifications = cdb.get_modifications(read_sock, sub_ids[0], 0, "/server-config")
 
-                for mod in modifications:
-                    # mod はタグのリスト(パス)と値のオブジェクトで構成されます
-                    # パスを文字列に変換
-                    path_str = _confd.hash2str(mod.tag) # ハッシュ形式の場合
-                    # 実際には mod オブジェクトの構造は環境に依存しますが、
-                    # 一般的には mod.tag (パス) と mod.val (値) を持ちます
-                    print(f"Diff Detected! Path: {mod.tag}, New Value: {mod.val}")
+                if not modifications:
+                    print("No modifications found.")
+                else:
+                    for mod in modifications:
+                        # mod.tag は [XMLタグのハッシュ値] のリストです。
+                        # mod.v は変更後の値 (_confd.Value) です。
+                        # _confd.hash2str() を使ってタグを人間が読める文字列に変換します。
+                        tag_path = "/".join([_confd.hash2str(t) for t in mod.tag])
+                        print(f"Diff Detected! Path: {tag_path}, Value: {str(mod.v)}")
 
                 cdb.end_session(read_sock)
             finally:
