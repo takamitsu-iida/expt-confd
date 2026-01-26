@@ -308,6 +308,16 @@ kill %%
 confd -c confd.conf --addloadpath $CONFD_DIR/src/confd/standard
 ```
 
+停止
+
+```bash
+confd --stop || true
+```
+
+```bash
+pkill -f subscribe.py || true
+```
+
 <!--
 
 ArcOSの場合、/usr/share/arcos/uiにfxsファイルが多数格納されてます。
