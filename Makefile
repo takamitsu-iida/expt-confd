@@ -1,9 +1,10 @@
 # 変数の定義
 CONFD_DIR ?= /usr/lib/confd
-YANG_DIR   = ./yang
+YANG_DIR = ./yang
 LOADPATH_DIR = ./loadpath
-BIN_DIR    = ./bin
-CONFIG_FILE  = ./confd.conf
+BIN_DIR = ./bin
+LOG_DIR = ./log
+CONFIG_FILE = ./confd.conf
 STATE_DIR = ./confd-state
 
 # 検索パス
@@ -45,6 +46,7 @@ $(BIN_DIR)/network_device_ns.py: $(LOADPATH_DIR)/network-device.fxs
 clean:
 	rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
 	rm -rf $(STATE_DIR)/*
+	rm -rf $(LOG_DIR)/*
 
 # ConfD 起動
 start: all
