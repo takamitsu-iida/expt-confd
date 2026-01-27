@@ -94,6 +94,10 @@ module network-device {
   // デバイス全体に影響する基本設定を定義
 
   container system {
+
+    tailf:cli-sequence-commands;
+    tailf:cli-compact-syntax;
+
     description "システム全体の設定
                  このコンテナ配下の設定は、デバイス全体の動作に影響";
 
@@ -103,6 +107,12 @@ module network-device {
         pattern '[a-zA-Z0-9][a-zA-Z0-9-]*';  // 先頭は英数字、以降は英数字とハイフン
       }
       default "Router";
+
+      tailf:cli-drop-node-name;
+      tailf:cli-sequence-commands {
+        tailf:cli-reset-siblings;
+      }
+
       description "デバイスのホスト名
                    - 1文字以上63文字以内
                    - 先頭は英数字、以降は英数字とハイフン

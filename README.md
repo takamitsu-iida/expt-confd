@@ -330,10 +330,7 @@ confd --stop || true
 pkill -f subscribe.py || true
 ```
 
-confd(config)# system hostname R1 ?
-Possible completions:
-  banner  domain-name  logging  name-server  <cr>
-confd(config)# system hostname R1
+
 
 
 <!--
