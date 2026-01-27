@@ -107,8 +107,6 @@ module network-device {
       }
       default "Router";
 
-      tailf:cli-drop-node-name;
-
       description "デバイスのホスト名
                    - 1文字以上63文字以内
                    - 先頭は英数字、以降は英数字とハイフン
