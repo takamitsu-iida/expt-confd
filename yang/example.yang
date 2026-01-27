@@ -43,7 +43,7 @@ module example {
   // ユーザーが変更可能な永続的な設定情報
   // CDBに保存され、デバイス再起動後も保持される
 
-  container server-config {
+  container sv-config {
     description
       "サーバー設定パラメータ
 
