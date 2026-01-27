@@ -12,7 +12,10 @@ YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR) --yangp
 
 # openconfigディレクトリ内の全YANGファイルを検索
 OPENCONFIG_YANG_FILES = $(wildcard $(OPENCONFIG_DIR)/*.yang)
-OPENCONFIG_FXS_FILES = $(patsubst $(OPENCONFIG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(OPENCONFIG_YANG_FILES))
+
+# サブモジュール（submodule）を除外し、トップレベルモジュールのみを抽出
+OPENCONFIG_MODULES = $(shell grep -l '^module ' $(OPENCONFIG_YANG_FILES))
+OPENCONFIG_FXS_FILES = $(patsubst $(OPENCONFIG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(OPENCONFIG_MODULES))
 
 # 生成するファイルを明示的に指定
 FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(OPENCONFIG_FXS_FILES)
