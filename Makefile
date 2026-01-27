@@ -23,31 +23,31 @@ all: $(FXS_FILES) $(NS_FILES)
 
 # 1. YANG から FXS をコンパイルするルール
 # サブモジュールは自動的にインクルードされる
-$(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang $(YANG_DIR)/*.yang)
-    @mkdir -p $(LOADPATH_DIR)
-    confdc -c -o $@ $< $(YANGPATH)
+$(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang $(YANG_DIR)/*.yang
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $< $(YANGPATH)
 
 # 2. FXS から Python 用名前空間ファイルを生成するルール
 # ファイル名は example_ns.py のようになるように設定
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
-    @mkdir -p $(BIN_DIR)
-    confdc --emit-python $@ $<
+	@mkdir -p $(BIN_DIR)
+	confdc --emit-python $@ $<
 
 # お掃除
 clean:
-    rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
+	rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
 
 # ConfD 起動
 start: all
-    confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard --addloadpath $(LOADPATH_DIR)
+	confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard --addloadpath $(LOADPATH_DIR)
 
 # ConfD 停止
 stop:
-    confd --stop || true
+	confd --stop || true
 
 # デバッグ用: どのファイルが対象か確認
 .PHONY: all clean start stop debug
 debug:
-    @echo "YANG_SOURCES = $(YANG_SOURCES)"
-    @echo "FXS_FILES = $(FXS_FILES)"
-    @echo "NS_FILES = $(NS_FILES)"
+	@echo "YANG_SOURCES = $(YANG_SOURCES)"
+	@echo "FXS_FILES = $(FXS_FILES)"
+	@echo "NS_FILES = $(NS_FILES)"
