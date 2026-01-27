@@ -4,6 +4,7 @@ YANG_DIR   = yang
 LOADPATH_DIR = ./loadpath
 BIN_DIR    = ./bin
 CONF_FILE  = ./confd.conf
+STATE_DIR = ./confd-state
 
 # ソースファイルのリスト作成
 # サブモジュール（submodule）を除外し、メインモジュール（module）のみを対象にする
@@ -36,6 +37,7 @@ $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
 # お掃除
 clean:
 	rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
+	rm -rf $(STATE_DIR)/*
 
 # ConfD 起動
 start: all
