@@ -17,6 +17,8 @@ terminal_log*.txt
 
 # confdの状態ファイル
 ./confd-state
+./confd-db
+./loadpath
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
