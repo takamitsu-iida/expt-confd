@@ -235,16 +235,130 @@ container config {
 ### 4. 参照と制約
 
 #### leafref
-他のleafへの参照
+他のleafへの参照を行うための型。データの整合性を保証し、存在しない値を参照することを防ぎます。
+
+**基本的な考え方:**
+- leafrefは「他のleafの値を参照する」ポインタのような働き
+- 参照先の値が存在しない場合はバリデーションエラーになる
+- XPath形式のpathで参照先を指定
+
+**シンプルな例:**
 
 ```yang
-leaf address {
-  type leafref {
-    path "../config/address";
+container user {
+  container config {
+    leaf username {
+      type string;
+      description "ユーザー名";
+    }
+
+    leaf primary-group {
+      type string;
+      description "プライマリグループ名";
+    }
   }
-  description "References the configured address of the DNS server";
+
+  // このleafは上記のprimary-groupの値を参照
+  leaf group-reference {
+    type leafref {
+      path "../config/primary-group";  // 相対パスで参照
+    }
+    description "グループへの参照 - 必ず存在するグループ名のみ指定可能";
+  }
 }
 ```
+
+**リストでの使用例（最も一般的なパターン）:**
+
+```yang
+// DNSサーバーのリスト定義
+list server {
+  key "address";  // addressがこのリストのキー
+
+  // このleafがリストのキーとして機能
+  // leafrefで下のconfig/addressを参照することで、
+  // キーと実際の設定値が常に同期される
+  leaf address {
+    type leafref {
+      path "../config/address";
+    }
+    description "DNSサーバーのアドレス（キー）";
+  }
+
+  container config {
+    leaf address {
+      type oc-inet:ip-address;  // 実際のデータ型はここで定義
+      description "DNSサーバーのIPアドレス（実体）";
+    }
+
+    leaf port {
+      type oc-inet:port-number;
+      default 53;
+    }
+  }
+}
+```
+
+**実際のデータ例:**
+
+上記のモデルから生成されるXMLデータ：
+```xml
+<server>
+  <address>8.8.8.8</address>  <!-- leafrefで参照されるキー -->
+  <config>
+    <address>8.8.8.8</address>  <!-- 実体の値 -->
+    <port>53</port>
+  </config>
+</server>
+```
+
+この構造により、キー（`server/address`）と実際の設定値（`server/config/address`）が常に一致することが保証されます。
+
+**絶対パスと相対パスの例:**
+
+```yang
+container network {
+  container interfaces {
+    list interface {
+      key "name";
+      leaf name {
+        type string;
+      }
+    }
+  }
+
+  container routes {
+    list route {
+      key "destination";
+      leaf destination {
+        type string;
+      }
+
+      // 相対パスの例
+      leaf interface-ref {
+        type leafref {
+          path "../../interfaces/interface/name";
+        }
+        description "このルートで使用するインターフェース名";
+      }
+
+      // 絶対パスの例（/から始まる）
+      leaf interface-ref-absolute {
+        type leafref {
+          path "/network/interfaces/interface/name";
+        }
+        description "絶対パスでの参照";
+      }
+    }
+  }
+}
+```
+
+**leafrefのメリット:**
+1. **参照整合性**: 存在しない値を参照できない（外部キー制約のような働き）
+2. **自動補完**: CLIやGUIツールで有効な値の候補を提示できる
+3. **削除保護**: 参照されているデータは削除できない
+4. **型の安全性**: 参照先の型が自動的に適用される
 
 #### when
 条件付きでノードを有効化
@@ -523,22 +637,129 @@ grouping system-ntp-server-config {
 
 #### 3. Leafrefによるキー参照
 
-リストのキーはleafrefで参照します：
+OpenConfigパターンでは、リストのキーは常にleafrefで参照します。これにより、キーと実際の設定値の整合性が保証されます。
+
+**標準パターン:**
 
 ```yang
 list server {
-  key "address";
+  key "address";  // ① キーの宣言
 
+  // ② キー用のleaf（leafrefで実体を参照）
   leaf address {
     type leafref {
-      path "../config/address";
+      path "../config/address";  // config/addressを参照
     }
     description "References the configured address";
   }
 
+  // ③ 設定コンテナ
+  container config {
+    leaf address {
+      type oc-inet:ip-address;  // ④ 実体の型定義
+      description "実際のIPアドレス値";
+    }
+
+    leaf port {
+      type oc-inet:port-number;
+      default 53;
+    }
+  }
+
+  // ⑤ 状態コンテナ
+  container state {
+    config false;
+    // 設定値 + 状態値を含む
+    leaf address {
+      type oc-inet:ip-address;
+    }
+    leaf port {
+      type oc-inet:port-number;
+    }
+    // 状態専用のデータ
+    leaf last-query-time {
+      type uint64;
+      description "最後のクエリ時刻";
+    }
+  }
+}
+```
+
+**データフローの説明:**
+
+1. ユーザーが設定: `server/config/address = "8.8.8.8"`
+2. YANGバリデータが自動的に: `server/address = "8.8.8.8"` をセット
+3. この値がリストのキーとして機能
+
+**完全なデータ例（JSON）:**
+
+```json
+{
+  "servers": {
+    "server": [
+      {
+        "address": "8.8.8.8",           // キー（leafref）
+        "config": {
+          "address": "8.8.8.8",         // 実体
+          "port": 53
+        },
+        "state": {
+          "address": "8.8.8.8",         // 状態（実行時の値）
+          "port": 53,
+          "last-query-time": 1234567890
+        }
+      },
+      {
+        "address": "8.8.4.4",
+        "config": {
+          "address": "8.8.4.4",
+          "port": 53
+        },
+        "state": {
+          "address": "8.8.4.4",
+          "port": 53,
+          "last-query-time": 1234567999
+        }
+      }
+    ]
+  }
+}
+```
+
+**なぜこのパターンを使うのか？**
+
+1. **一貫性**: キーと設定値が常に一致
+2. **API設計**: RESTful APIで `/servers/server[address=8.8.8.8]/config` のようなパスが使える
+3. **柔軟性**: キーは読み取り専用だが、config/addressは変更可能（変更時はキーも自動更新）
+
+**従来のパターンとの比較:**
+
+```yang
+// 従来パターン（leafref不使用）
+list server {
+  key "address";
+  leaf address {
+    type oc-inet:ip-address;  // 直接型を指定
+  }
+  leaf port {
+    type oc-inet:port-number;
+  }
+}
+
+// OpenConfigパターン（leafref使用）
+list server {
+  key "address";
+  leaf address {
+    type leafref {
+      path "../config/address";  // 参照で整合性保証
+    }
+  }
   container config {
     leaf address {
       type oc-inet:ip-address;
+    }
+    leaf port {
+      type oc-inet:port-number;
     }
   }
 }
