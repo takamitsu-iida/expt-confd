@@ -53,7 +53,3 @@ debug:
 	@echo "YANG_SOURCES = $(YANG_SOURCES)"
 	@echo "FXS_FILES = $(FXS_FILES)"
 	@echo "NS_FILES = $(NS_FILES)"
-
-root@confd:~/expt-confd# make start
-confdc --emit-python bin/network-device_ns.py loadpath/network-device.fxs
-confd -c ./confd.conf --addloadpath /usr/lib/confd/src/confd/standard --addloadpath ./loadpath
