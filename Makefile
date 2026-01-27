@@ -1,6 +1,6 @@
 # 変数の定義
 CONFD_DIR ?= /usr/lib/confd
-YANG_DIR   = yang
+YANG_DIR   = ./yang
 LOADPATH_DIR = ./loadpath
 BIN_DIR    = ./bin
 CONF_FILE  = ./confd.conf
