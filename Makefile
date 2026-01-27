@@ -27,7 +27,8 @@ $(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
-$(LOADPATH_DIR)/openconfig-system.fxs: $(OPENCONFIG_DIR)/openconfig-system.yang
+# openconfigディレクトリ内の各YANGファイルをコンパイル
+$(LOADPATH_DIR)/%.fxs: $(OPENCONFIG_DIR)/%.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
