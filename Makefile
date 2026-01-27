@@ -11,11 +11,8 @@ STATE_DIR = ./confd-state
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 
 # 生成するファイルを明示的に指定
-# FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs
-FXS_FILES = $(LOADPATH_DIR)/example.fxs
-
-# NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
-NS_FILES  = $(BIN_DIR)/example_ns.py
+FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs
+NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
 
 # デフォルトターゲット
 all: $(FXS_FILES) $(NS_FILES)
@@ -50,8 +47,7 @@ clean:
 
 # ConfD 起動
 start: all
-	# confd -c $(CONFIG_FILE)
-	confd -c $(CONFIG_FILE) --addloadpath $(LOADPATH_DIR)
+	confd -c $(CONFIG_FILE)
 
 # ConfD 停止
 stop:
