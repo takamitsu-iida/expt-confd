@@ -6,47 +6,37 @@ BIN_DIR    = ./bin
 CONF_FILE  = ./confd.conf
 STATE_DIR = ./confd-state
 
-# ソースファイルのリスト作成
-# サブモジュール（submodule）を除外し、メインモジュール（module）のみを対象にする
-YANG_SOURCES = $(shell grep -l "^module " $(YANG_DIR)/*.yang 2>/dev/null)
-
-# .fxs ファイルのリスト
-FXS_FILES = $(patsubst $(YANG_DIR)/%.yang, $(LOADPATH_DIR)/%.fxs, $(YANG_SOURCES))
-
-# Python 共通定義（_ns.py）ファイルのリスト
-NS_FILES  = $(patsubst $(LOADPATH_DIR)/%.fxs, $(BIN_DIR)/%_ns.py, $(FXS_FILES))
-
 # 検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/standard --yangpath $(YANG_DIR)
+
+# 生成するファイルを明示的に指定
+FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs
+NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
 
 # デフォルトターゲット
 all: $(FXS_FILES) $(NS_FILES)
 
-# サブモジュールの依存関係を自動検出する関数
-# 各メインモジュールがインクルードするサブモジュールを探す
-define get-submodules
-$(shell grep -h "^[[:space:]]*include" $(1) 2>/dev/null | \
-        sed 's/include[[:space:]]*\([^;]*\);.*/\1/' | \
-        xargs -I {} echo "$(YANG_DIR)/{}.yang")
-endef
+# example.yang → example.fxs (サブモジュール含む)
+$(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $(YANG_DIR)/example.yang $(YANGPATH)
 
-# 1. YANG から FXS をコンパイルするルール
-# 各モジュールは、それ自身とインクルードするサブモジュールに依存する
-$(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
+# network-device.yang → network-device.fxs (サブモジュールなし)
+$(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
-# 明示的な依存関係を追加（example.yangの例）
-$(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
-
-# network-deviceにサブモジュールがある場合は同様に追加
-# $(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang $(YANG_DIR)/network-device-xxx.yang
-
-# 2. FXS から Python 用名前空間ファイルを生成するルール
-$(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
+# example.fxs → example_ns.py
+$(BIN_DIR)/example_ns.py: $(LOADPATH_DIR)/example.fxs
 	@mkdir -p $(BIN_DIR)
 	confdc --emit-python $@ $<
-	@touch $@  # タイムスタンプを明示的に更新
+	@touch $@
+
+# network-device.fxs → network_device_ns.py
+$(BIN_DIR)/network_device_ns.py: $(LOADPATH_DIR)/network-device.fxs
+	@mkdir -p $(BIN_DIR)
+	confdc --emit-python $@ $<
+	@touch $@
 
 # お掃除
 clean:
@@ -64,6 +54,5 @@ stop:
 # デバッグ用: どのファイルが対象か確認
 .PHONY: all clean start stop debug
 debug:
-	@echo "YANG_SOURCES = $(YANG_SOURCES)"
 	@echo "FXS_FILES = $(FXS_FILES)"
 	@echo "NS_FILES = $(NS_FILES)"
