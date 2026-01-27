@@ -10,8 +10,12 @@ OPENCONFIG_DIR = ./openconfig
 # 検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR) --yangpath $(OPENCONFIG_DIR)
 
+# openconfigディレクトリ内の全YANGファイルを検索
+OPENCONFIG_YANG_FILES = $(wildcard $(OPENCONFIG_DIR)/*.yang)
+OPENCONFIG_FXS_FILES = $(patsubst $(OPENCONFIG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(OPENCONFIG_YANG_FILES))
+
 # 生成するファイルを明示的に指定
-FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(LOADPATH_DIR)/openconfig-system.fxs
+FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(OPENCONFIG_FXS_FILES)
 NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
 
 # デフォルトターゲット
