@@ -95,8 +95,9 @@ module network-device {
 
   container system {
 
-    tailf:cli-sequence-commands;
-    tailf:cli-compact-syntax;
+    tailf:cli-sequence-commands {
+      tailf:cli-compact-syntax;
+    }
 
     description "システム全体の設定
                  このコンテナ配下の設定は、デバイス全体の動作に影響";
@@ -109,9 +110,6 @@ module network-device {
       default "Router";
 
       tailf:cli-drop-node-name;
-      tailf:cli-sequence-commands {
-        tailf:cli-reset-siblings;
-      }
 
       description "デバイスのホスト名
                    - 1文字以上63文字以内
