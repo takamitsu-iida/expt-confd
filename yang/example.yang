@@ -1,7 +1,7 @@
 module example {
   namespace "http://example.com/ns/config";
 
-  prefix example;
+  prefix ex;
 
   import tailf-common {
     prefix tailf;
