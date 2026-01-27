@@ -10,7 +10,7 @@ CONFIG_FILE = ./confd.conf
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 
 # 生成するファイルを明示的に指定
-FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs
+FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(LOADPATH_DIR)/openconfig-system.fxs
 NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
 
 # デフォルトターゲット
@@ -23,6 +23,10 @@ $(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang #   $(YANG_DIR)/example-co
 
 # network-device.yang → network-device.fxs (サブモジュールなし)
 $(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $< $(YANGPATH)
+
+$(LOADPATH_DIR)/openconfig-system.fxs: $(YANG_DIR)/openconfig-system.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
