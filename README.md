@@ -314,6 +314,12 @@ kill %%
 confd -c confd.conf --addloadpath $CONFD_DIR/src/confd/standard
 ```
 
+confd -c ./confd.conf --addloadpath ./loadpath --addloadpath /usr/lib/confd/src/confd/standard
+
+confd_cli -u admin -c "show yang-modules | include example"
+ls -la ./loadpath/
+
+
 停止
 
 ```bash
