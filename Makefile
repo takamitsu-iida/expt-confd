@@ -44,8 +44,8 @@ $(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config
 
 # 2. FXS から Python 用名前空間ファイルを生成するルール
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
-    @mkdir -p $(BIN_DIR)
-    confdc --emit-python $@ $<
+	@mkdir -p $(BIN_DIR)
+	confdc --emit-python $@ $<
 
 # お掃除
 clean:
