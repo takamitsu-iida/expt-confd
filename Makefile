@@ -50,9 +50,8 @@ clean:
 
 # ConfD 起動
 start: all
-	confd -c $(CONFIG_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard --addloadpath $(LOADPATH_DIR)
-	# confd -c $(CONFIG_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard
 	# confd -c $(CONFIG_FILE)
+	confd -c $(CONFIG_FILE) --addloadpath $(LOADPATH_DIR)
 
 # ConfD 停止
 stop:
