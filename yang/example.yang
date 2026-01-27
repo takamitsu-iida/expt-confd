@@ -2,14 +2,6 @@ module example {
   namespace "http://example.com/ns/example";
   prefix ex;
 
-  import tailf-common {
-    prefix tailf;
-  }
-
-  import ietf-inet-types {
-    prefix inet;
-  }
-
   // サブモジュールをインクルード
   include example-config;
   include example-state;
