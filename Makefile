@@ -3,7 +3,7 @@ CONFD_DIR ?= /usr/lib/confd
 YANG_DIR   = ./yang
 LOADPATH_DIR = ./loadpath
 BIN_DIR    = ./bin
-CONF_FILE  = ./confd.conf
+CONFIG_FILE  = ./confd.conf
 STATE_DIR = ./confd-state
 
 # 検索パス
@@ -48,7 +48,8 @@ clean:
 
 # ConfD 起動
 start: all
-	confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard
+	# confd -c $(CONFIG_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard
+	confd -c $(CONFIG_FILE)
 
 # ConfD 停止
 stop:
