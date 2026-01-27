@@ -1,0 +1,22 @@
+module example {
+  namespace "http://example.com/ns/example";
+  prefix ex;
+
+  // サブモジュールをインクルード
+  include example-config;
+  include example-state;
+
+  organization "Example Corp";
+  contact "support@example.com";
+
+  description
+    "統合サーバー管理モジュール
+
+     このモジュールは以下のサブモジュールで構成される:
+     - example-config: 設定データ（config true）
+     - example-state: 状態データ（config false）";
+
+  revision 2026-01-27 {
+    description "サブモジュール構成に変更";
+  }
+}

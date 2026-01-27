@@ -2,21 +2,68 @@ module example {
   namespace "http://example.com/ns/example";
   prefix ex;
 
-  // サブモジュールをインクルード
-  include example-config;
-  include example-state;
+  import ietf-inet-types {
+    prefix inet;
+  }
 
   organization "Example Corp";
   contact "support@example.com";
 
   description
-    "統合サーバー管理モジュール
-
-     このモジュールは以下のサブモジュールで構成される:
-     - example-config: 設定データ（config true）
-     - example-state: 状態データ（config false）";
+    "統合サーバー管理モジュール";
 
   revision 2026-01-27 {
-    description "サブモジュール構成に変更";
+    description "初期リリース";
+  }
+
+  // =============================================================================
+  // Configuration Data (config true)
+  // =============================================================================
+
+  container server-config {
+    description
+      "サーバー設定パラメータ
+
+       管理者が変更可能な設定データを格納
+       CDB (Configuration Database) に永続化される";
+
+    leaf ip-address {
+      type inet:ip-address;
+      default "127.0.0.1";
+      description
+        "サーバーが接続を受け付けるIPアドレス
+
+         【型】inet:ip-address (IPv4/IPv6両対応)
+         【デフォルト】127.0.0.1 (localhost)
+
+         【使用例】
+         - 開発環境: 127.0.0.1
+         - 本番環境: 0.0.0.0 または特定IP";
+    }
+  }
+
+  // =============================================================================
+  // State Data (config false)
+  // =============================================================================
+
+  container server-status {
+    config false;
+    description
+      "サーバー状態情報
+
+       実行時の状態データ（読み取り専用）
+       外部データプロバイダー（Python）から取得される";
+
+    leaf status {
+      type string;
+      mandatory true;
+      description "サーバーの現在の状態";
+    }
+
+    leaf uptime {
+      type uint64;
+      units "seconds";
+      description "サーバーの稼働時間（秒）";
+    }
   }
 }

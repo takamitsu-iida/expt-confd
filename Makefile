@@ -20,7 +20,7 @@ NS_FILES  = $(BIN_DIR)/example_ns.py
 all: $(FXS_FILES) $(NS_FILES)
 
 # example.yang → example.fxs (サブモジュール含む)
-$(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
+$(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang #   $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $(YANG_DIR)/example.yang $(YANGPATH)
 
