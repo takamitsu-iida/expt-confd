@@ -33,8 +33,8 @@ endef
 # 1. YANG から FXS をコンパイルするルール
 # 各モジュールは、それ自身とインクルードするサブモジュールに依存する
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
-    @mkdir -p $(LOADPATH_DIR)
-    confdc -c -o $@ $< $(YANGPATH)
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $< $(YANGPATH)
 
 # 明示的な依存関係を追加（example.yangの例）
 $(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
