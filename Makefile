@@ -5,7 +5,6 @@ LOADPATH_DIR = ./loadpath
 BIN_DIR = ./bin
 LOG_DIR = ./log
 CONFIG_FILE = ./confd.conf
-STATE_DIR = ./confd-state
 
 # 検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
@@ -42,7 +41,6 @@ $(BIN_DIR)/network_device_ns.py: $(LOADPATH_DIR)/network-device.fxs
 # お掃除
 clean:
 	rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
-	rm -rf $(STATE_DIR)/*
 	rm -rf $(LOG_DIR)/*
 
 # ConfD 起動
