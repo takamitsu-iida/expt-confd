@@ -48,7 +48,7 @@ clean:
 
 # ConfD 起動
 start: all
-	confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard --addloadpath $(LOADPATH_DIR)
+	confd -c $(CONF_FILE) --addloadpath $(CONFD_DIR)/src/confd/standard
 
 # ConfD 停止
 stop:
