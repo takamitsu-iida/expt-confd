@@ -196,7 +196,7 @@ module network-device {
                  を統一的に管理";
 
     list interface {
-      key "name";  // keyはリスト内で一意な識別子
+      key "name";  // keyはリストの中にあるエントリを識別するための識別子
       description "個別インタフェースの設定
                    【設定例】
                    interfaces {
@@ -206,10 +206,10 @@ module network-device {
                      }
                    }";
 
-      leaf name {
+      leaf name {  // インタフェース名がkeyとなる
         type interface-name;
         description "インタフェース名
-                     このnameがkeyとなり、各インタフェースを一意に識別";
+                     このnameを使って各インタフェースを一意に識別";
       }
 
       leaf description {

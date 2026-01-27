@@ -1,0 +1,44 @@
+submodule example-config {
+  belongs-to example {
+    prefix ex;
+  }
+
+  import ietf-inet-types {
+    prefix inet;
+  }
+
+  description
+    "サーバー設定サブモジュール
+
+     設定可能なパラメータ（config true）を定義";
+
+  revision 2026-01-27 {
+    description "サブモジュールとして分離";
+  }
+
+  // =============================================================================
+  // Configuration Data
+  // =============================================================================
+
+  container server-config {
+    description
+      "サーバー設定パラメータ
+
+       管理者が変更可能な設定データを格納
+       CDB (Configuration Database) に永続化される";
+
+    leaf ip-address {
+      type inet:ip-address;
+      default "127.0.0.1";
+      description
+        "サーバーが接続を受け付けるIPアドレス
+
+         【型】inet:ip-address (IPv4/IPv6両対応)
+         【デフォルト】127.0.0.1 (localhost)
+
+         【使用例】
+         - 開発環境: 127.0.0.1
+         - 本番環境: 0.0.0.0 または特定IP";
+    }
+  }
+}

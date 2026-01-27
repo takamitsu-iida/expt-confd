@@ -1,0 +1,52 @@
+submodule example-state {
+  belongs-to example {
+    prefix ex;
+  }
+
+  import tailf-common {
+    prefix tailf;
+  }
+
+  description
+    "サーバー状態サブモジュール
+
+     読み取り専用の運用データ（config false）を定義";
+
+  revision 2026-01-27 {
+    description "サブモジュールとして分離";
+  }
+
+  // =============================================================================
+  // Operational State Data
+  // =============================================================================
+
+  container server-status {
+    config false;
+
+    description
+      "サーバー運用状態情報
+
+       システムが動的に生成する読み取り専用データ
+       Pythonデータプロバイダが値を提供";
+
+    tailf:callpoint server_status_cp;
+
+    leaf uptime {
+      type string;
+      description
+        "サーバー稼働時間メッセージ
+
+         【表示例】
+         'Up and running! (Uptime: 2h 15m)'";
+    }
+
+    leaf last-checked-at {
+      type string;
+      description
+        "最終確認時刻（HH:MM:SS形式）
+
+         【表示例】
+         '14:30:45'";
+    }
+  }
+}
