@@ -8,7 +8,7 @@ CONFIG_FILE = ./confd.conf
 STATE_DIR = ./confd-state
 
 # 検索パス
-YANGPATH = --yangpath $(CONFD_DIR)/src/confd/standard --yangpath $(YANG_DIR)
+YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 
 # 生成するファイルを明示的に指定
 # FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs
