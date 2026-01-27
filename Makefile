@@ -22,17 +22,30 @@ YANGPATH = --yangpath $(CONFD_DIR)/src/confd/standard --yangpath $(YANG_DIR)
 # デフォルトターゲット
 all: $(FXS_FILES) $(NS_FILES)
 
+# サブモジュールの依存関係を自動検出する関数
+# 各メインモジュールがインクルードするサブモジュールを探す
+define get-submodules
+$(shell grep -h "^[[:space:]]*include" $(1) 2>/dev/null | \
+        sed 's/include[[:space:]]*\([^;]*\);.*/\1/' | \
+        xargs -I {} echo "$(YANG_DIR)/{}.yang")
+endef
+
 # 1. YANG から FXS をコンパイルするルール
-# サブモジュールは自動的にインクルードされる
-$(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang $(YANG_DIR)/*.yang
-	@mkdir -p $(LOADPATH_DIR)
-	confdc -c -o $@ $< $(YANGPATH)
+# 各モジュールは、それ自身とインクルードするサブモジュールに依存する
+$(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
+    @mkdir -p $(LOADPATH_DIR)
+    confdc -c -o $@ $< $(YANGPATH)
+
+# 明示的な依存関係を追加（example.yangの例）
+$(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config.yang $(YANG_DIR)/example-state.yang
+
+# network-deviceにサブモジュールがある場合は同様に追加
+# $(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang $(YANG_DIR)/network-device-xxx.yang
 
 # 2. FXS から Python 用名前空間ファイルを生成するルール
-# ファイル名は example_ns.py のようになるように設定
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
-	@mkdir -p $(BIN_DIR)
-	confdc --emit-python $@ $<
+    @mkdir -p $(BIN_DIR)
+    confdc --emit-python $@ $<
 
 # お掃除
 clean:
