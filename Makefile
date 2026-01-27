@@ -46,6 +46,7 @@ $(LOADPATH_DIR)/example.fxs: $(YANG_DIR)/example.yang $(YANG_DIR)/example-config
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
 	@mkdir -p $(BIN_DIR)
 	confdc --emit-python $@ $<
+	@touch $@  # タイムスタンプを明示的に更新
 
 # お掃除
 clean:
