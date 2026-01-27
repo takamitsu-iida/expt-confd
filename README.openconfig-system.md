@@ -72,6 +72,219 @@ module openconfig-system {
 }
 ```
 
+### pyangによるツリー表示
+
+YANGモジュールの構造を可視化するために、`pyang -f tree`コマンドを使用できます。これにより、データモデルの階層構造が分かりやすく表示されます。
+
+```bash
+pyang -f tree openconfig-system.yang
+```
+
+#### ツリー表記の見方
+
+- `+--rw`: 読み書き可能なノード（config true）
+- `+--ro`: 読み取り専用のノード（config false）
+- `?`: オプショナル（存在しなくてもよい）
+- `*`: 0個以上の要素を持つリストまたはleaf-list
+- `[key]`: リストのキー
+- `->`: leafrefによる参照
+
+#### openconfig-system.yangのツリー構造（抜粋）
+
+```
+module: openconfig-system
+  +--rw system
+     +--rw config
+     |  +--rw hostname?       oc-inet:domain-name
+     |  +--rw domain-name?    oc-inet:domain-name
+     |  +--rw login-banner?   string
+     |  +--rw motd-banner?    string
+     +--ro state
+     |  +--ro hostname?           oc-inet:domain-name
+     |  +--ro domain-name?        oc-inet:domain-name
+     |  +--ro login-banner?       string
+     |  +--ro motd-banner?        string
+     |  +--ro current-datetime?   oc-yang:date-and-time
+     |  +--ro boot-time?          oc-types:timeticks64
+     +--rw clock
+     |  +--rw config
+     |  |  +--rw timezone-name?   timezone-name-type
+     |  +--ro state
+     |     +--ro timezone-name?   timezone-name-type
+     +--rw dns
+     |  +--rw config
+     |  |  +--rw search*   oc-inet:domain-name
+     |  +--ro state
+     |  |  +--ro search*   oc-inet:domain-name
+     |  +--rw servers
+     |  |  +--rw server* [address]
+     |  |     +--rw address    -> ../config/address
+     |  |     +--rw config
+     |  |     |  +--rw address?   oc-inet:ip-address
+     |  |     |  +--rw port?      oc-inet:port-number
+     |  |     +--ro state
+     |  |        +--ro address?   oc-inet:ip-address
+     |  |        +--ro port?      oc-inet:port-number
+     |  +--rw host-entries
+     |     +--rw host-entry* [hostname]
+     |        +--rw hostname    -> ../config/hostname
+     |        +--rw config
+     |        |  +--rw hostname?       string
+     |        |  +--rw alias*          string
+     |        |  +--rw ipv4-address*   oc-inet:ipv4-address
+     |        |  +--rw ipv6-address*   oc-inet:ipv6-address
+     |        +--ro state
+     |           +--ro hostname?       string
+     |           +--ro alias*          string
+     |           +--ro ipv4-address*   oc-inet:ipv4-address
+     |           +--ro ipv6-address*   oc-inet:ipv6-address
+     +--rw ntp
+     |  +--rw config
+     |  |  +--rw enabled?              boolean
+     |  |  +--rw ntp-source-address?   oc-inet:ip-address
+     |  |  +--rw enable-ntp-auth?      boolean
+     |  +--ro state
+     |  |  +--ro enabled?              boolean
+     |  |  +--ro ntp-source-address?   oc-inet:ip-address
+     |  |  +--ro enable-ntp-auth?      boolean
+     |  |  +--ro auth-mismatch?        oc-yang:counter64
+     |  +--rw ntp-keys
+     |  |  +--rw ntp-key* [key-id]
+     |  |     +--rw key-id    -> ../config/key-id
+     |  |     +--rw config
+     |  |     |  +--rw key-id?      uint16
+     |  |     |  +--rw key-type?    identityref
+     |  |     |  +--rw key-value?   string
+     |  |     +--ro state
+     |  |        +--ro key-id?      uint16
+     |  |        +--ro key-type?    identityref
+     |  |        +--ro key-value?   string
+     |  +--rw servers
+     |     +--rw server* [address]
+     |        +--rw address    -> ../config/address
+     |        +--rw config
+     |        |  +--rw address?            oc-inet:host
+     |        |  +--rw port?               oc-inet:port-number
+     |        |  +--rw version?            uint8
+     |        |  +--rw association-type?   enumeration
+     |        |  +--rw iburst?             boolean
+     |        |  +--rw prefer?             boolean
+     |        +--ro state
+     |           +--ro address?            oc-inet:host
+     |           +--ro port?               oc-inet:port-number
+     |           +--ro version?            uint8
+     |           +--ro association-type?   enumeration
+     |           +--ro iburst?             boolean
+     |           +--ro prefer?             boolean
+     |           +--ro stratum?            uint8
+     |           +--ro root-delay?         uint32
+     |           +--ro root-dispersion?    uint64
+     |           +--ro offset?             uint64
+     |           +--ro poll-interval?      uint32
+     +--rw aaa
+     |  +--rw authentication
+     |  |  +--rw config
+     |  |  |  +--rw authentication-method*   union
+     |  |  +--ro state
+     |  |  |  +--ro authentication-method*   union
+     |  |  +--rw admin-user
+     |  |  |  +--rw config
+     |  |  |  |  +--rw admin-password?          string
+     |  |  |  |  +--rw admin-password-hashed?   oc-aaa-types:crypt-password-type
+     |  |  |  +--ro state
+     |  |  |     +--ro admin-password?          string
+     |  |  |     +--ro admin-password-hashed?   oc-aaa-types:crypt-password-type
+     |  |  |     +--ro admin-username?          string
+     |  |  +--rw users
+     |  |     +--rw user* [username]
+     |  |        +--rw username    -> ../config/username
+     |  |        +--rw config
+     |  |        |  +--rw username?          string
+     |  |        |  +--rw password?          string
+     |  |        |  +--rw password-hashed?   oc-aaa-types:crypt-password-type
+     |  |        |  +--rw ssh-key?           string
+     |  |        |  +--rw role?              union
+     |  |        +--ro state
+     |  |           +--ro username?          string
+     |  |           +--ro password?          string
+     |  |           +--ro password-hashed?   oc-aaa-types:crypt-password-type
+     |  |           +--ro ssh-key?           string
+     |  |           +--ro role?              union
+     |  +--rw server-groups
+     |     +--rw server-group* [name]
+     |        +--rw name       -> ../config/name
+     |        +--rw servers
+     |           +--rw server* [address]
+     |              +--rw address    -> ../config/address
+     |              +--rw config
+     |              |  +--rw address?   oc-inet:ip-address
+     |              +--ro state
+     |              |  +--ro address?               oc-inet:ip-address
+     |              |  +--ro connection-opens?      oc-yang:counter64
+     |              |  +--ro connection-closes?     oc-yang:counter64
+     |              |  +--ro messages-sent?         oc-yang:counter64
+     |              |  +--ro messages-received?     oc-yang:counter64
+     |              +--rw tacacs
+     |              |  +--rw config
+     |              |  |  +--rw port?             oc-inet:port-number
+     |              |  |  +--rw secret-key?       oc-types:routing-password
+     |              |  +--ro state
+     |              |     +--ro port?             oc-inet:port-number
+     |              +--rw radius
+     |                 +--rw config
+     |                 |  +--rw auth-port?             oc-inet:port-number
+     |                 |  +--rw secret-key?            oc-types:routing-password
+     |                 +--ro state
+     |                    +--ro auth-port?             oc-inet:port-number
+     |                    +--ro counters
+     |                       +--ro access-accepts?            oc-yang:counter64
+     |                       +--ro access-rejects?            oc-yang:counter64
+     +--ro cpus
+     |  +--ro cpu* [index]
+     |     +--ro index    -> ../state/index
+     |     +--ro state
+     |        +--ro index?    union
+     |        +--ro total
+     |        |  +--ro instant?    oc-types:percentage
+     |        |  +--ro avg?        oc-types:percentage
+     |        |  +--ro min?        oc-types:percentage
+     |        |  +--ro max?        oc-types:percentage
+     |        +--ro user
+     |        |  +--ro instant?    oc-types:percentage
+     |        |  +--ro avg?        oc-types:percentage
+     |        +--ro kernel
+     |        |  +--ro instant?    oc-types:percentage
+     |        +--ro idle
+     |           +--ro instant?    oc-types:percentage
+     +--ro processes
+     |  +--ro process* [pid]
+     |     +--ro pid      -> ../state/pid
+     |     +--ro state
+     |        +--ro pid?                  uint64
+     |        +--ro name?                 string
+     |        +--ro cpu-utilization?      oc-types:percentage
+     |        +--ro memory-usage?         uint64
+     +--ro alarms
+        +--ro alarm* [id]
+           +--ro id        -> ../state/id
+           +--ro state
+              +--ro id?             string
+              +--ro resource?       string
+              +--ro text?           string
+              +--ro severity?       identityref
+```
+
+#### ツリーから読み取れる重要なポイント
+
+1. **階層構造**: すべてのデータは`system`コンテナの下に配置
+2. **config/stateパターン**: 各セクションで一貫して使用
+3. **leafref参照**: リストのキーは`->`記号で表示（例: `address -> ../config/address`）
+4. **データ型**: 各leafの後に型が表示（例: `oc-inet:ip-address`）
+5. **リスト**: `*`印とキー `[key-name]` で識別
+6. **読み取り専用データ**: `+--ro`で始まるノード（状態データ、統計情報など）
+
+この可視化により、YANGモデルの全体像を素早く把握でき、APIのパス設計やデータ構造の理解に役立ちます。
+
 ---
 
 ## 主要な文(Statement)
