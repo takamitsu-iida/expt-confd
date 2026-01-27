@@ -6,7 +6,6 @@ BIN_DIR = ./bin
 LOG_DIR = ./log
 CONFIG_FILE = ./confd.conf
 STATE_DIR = ./confd-state
-CDB_DIR = ./confd-db
 
 # 検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
@@ -48,7 +47,6 @@ clean:
 	rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py
 	rm -rf $(STATE_DIR)/*
 	rm -rf $(LOG_DIR)/*
-	rm -rf $(CDB_DIR)/*
 
 # ConfD 起動
 start: all

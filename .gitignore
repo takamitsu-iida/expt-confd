@@ -15,9 +15,8 @@ terminal_log*.txt
 # 一時ディレクトリ
 ./tmp
 
-# confdの状態ファイル
+# confdファイル
 ./confd-state
-./confd-db
 ./loadpath
 
 # Byte-compiled / optimized / DLL files
