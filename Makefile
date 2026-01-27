@@ -5,9 +5,10 @@ LOADPATH_DIR = ./loadpath
 BIN_DIR = ./bin
 LOG_DIR = ./log
 CONFIG_FILE = ./confd.conf
+OPENCONFIG_DIR = ./openconfig
 
 # 検索パス
-YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
+YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR) --yangpath $(OPENCONFIG_DIR)
 
 # 生成するファイルを明示的に指定
 FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(LOADPATH_DIR)/openconfig-system.fxs
@@ -26,7 +27,7 @@ $(LOADPATH_DIR)/network-device.fxs: $(YANG_DIR)/network-device.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
-$(LOADPATH_DIR)/openconfig-system.fxs: $(YANG_DIR)/openconfig-system.yang
+$(LOADPATH_DIR)/openconfig-system.fxs: $(OPENCONFIG_DIR)/openconfig-system.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
 
