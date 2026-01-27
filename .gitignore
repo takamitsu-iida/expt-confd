@@ -15,6 +15,9 @@ terminal_log*.txt
 # 一時ディレクトリ
 ./tmp
 
+# confdの状態ファイル
+./confd-state
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
