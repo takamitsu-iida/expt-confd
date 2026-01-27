@@ -95,9 +95,7 @@ module network-device {
 
   container system {
 
-    tailf:cli-sequence-commands {
-      tailf:cli-compact-syntax;
-    }
+    tailf:cli-compact-syntax;
 
     description "システム全体の設定
                  このコンテナ配下の設定は、デバイス全体の動作に影響";
