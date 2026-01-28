@@ -28,9 +28,93 @@ x86_64の方のzipファイルをダウンロードします。
 
 <br><br>
 
-## 環境構築
+## ConfDの動作に必要な環境
 
-Hyper-VホストのWSL(Ubuntu)で作業を行います。
+試行錯誤した結果、以下が判明しています。
+
+- 古いOpenSSL（バージョン 1.1）が必要
+- gccが必要
+- makeが必要
+
+<br><br>
+
+## WSL(Ubuntu)にインストール
+
+普段使っているWSL(Ubuntu)にインストールするのが手っ取り早いです。
+
+インストール先は ~/confd とします。
+
+1. ~/tmpにダウンロードしたzipファイルを置きます。
+
+2. unzipで解凍します。
+
+3. binファイルに実行権限を付与して実行すると、インストーラのbinファイルが追加されます。
+
+4. インストーラのbinファイルに実行権限を付与して実行します。
+
+```bash
+$ cd tmp
+
+$ mkdir -p ~/confd
+
+$ mv ../confd-basic-8.0.20.linux.x86_64.signed.zip .
+
+$ unzip confd-basic-8.0.20.linux.x86_64.signed.zip
+Archive:  confd-basic-8.0.20.linux.x86_64.signed.zip
+  inflating: confd-basic-8.0.20.libconfd.tar.gz
+  inflating: confd-basic-8.0.20.examples.tar.gz
+  inflating: confd-basic-8.0.20.linux.x86_64.signed.bin
+  inflating: confd-basic-8.0.20.doc.tar.gz
+
+$ chmod a+x *.bin
+
+$ ./confd-basic-8.0.20.linux.x86_64.signed.bin
+Unpacking...
+Verifying signature...
+CA chain innerspace chosen based on finding 'innerspace' string in eecert
+Using cert chain 'innerspace' (crcam2.cer and innerspace.cer)
+Retrieving rootCA certificate from https://www.cisco.com/security/pki/certs/crcam2.cer ...
+Success in downloading https://www.cisco.com/security/pki/certs/crcam2.cer
+Using downloaded rootCA cert /tmp/tmptwcame4s/crcam2.cer
+Retrieving subCA certificate from https://www.cisco.com/security/pki/certs/innerspace.cer ...
+Success in downloading https://www.cisco.com/security/pki/certs/innerspace.cer
+Using downloaded subCA cert /tmp/tmptwcame4s/innerspace.cer
+Successfully verified root, subca and end-entity certificate chain.
+Successfully fetched a public key from tailf.cer
+Successfully verified the signature of confd-basic-8.0.20.linux.x86_64.installer.bin using tailf.cer
+
+$ chmod a+x *.bin
+
+$ ./confd-basic-8.0.20.linux.x86_64.installer.bin ~/confd
+INFO  Unpacked confd-basic-8.0.20 in /home/iida/confd
+INFO  Found and unpacked corresponding DOCUMENTATION_PACKAGE
+INFO  Found and unpacked corresponding EXAMPLE_PACKAGE
+INFO  Generating default SSH hostkey (this may take some time)
+INFO  SSH hostkey generated
+INFO  Generating self-signed certificates for HTTPS
+INFO  Environment set-up generated in /home/iida/confd/confdrc
+INFO  ConfD installation script finished
+```
+
+~/confd/confdrc を読み込むように、~/.bashrcを変更します。
+
+```bash
+cat - << 'EOS' >> ~/.bashrc
+
+#
+if [ -f ~/confd/confdrc ]; then
+    source ~/confd/confdrc
+fi
+EOS
+```
+
+<br><br>
+
+## CMLでの環境構築
+
+CML上にラボを立てて、そこで実験する場合です。
+
+CMLが稼働するHyper-Vの母艦となっているWindowsのWSL(Ubuntu)で作業を行います。
 
 WSL(Ubuntu)にて、このリポジトリをクローンします。
 
@@ -44,15 +128,15 @@ git clone https://github.com/takamitsu-iida/expt-confd.git
 cd expt-confd
 ```
 
-これでCML上にラボを作成するためのPython環境を整えるために、初期セットアップスクリプトを実行します。
+Python環境を整えるために、初期セットアップスクリプトを実行します。
 
 ```bash
 bin/setup.sh
 ```
 
-<br><br>
+<br>
 
-## Ubuntuのセットアップ
+### ラボのセットアップ
 
 CML上にラボを作成して、Ubuntuを作成します。
 
@@ -106,24 +190,11 @@ iida@s400win:~/git/expt-confd/cml$ make terminal
 ../bin/open_terminal.sh 7000
 ```
 
-<br><br>
+<br>
 
-## ConfDのインストール
+### ConfDのインストール
 
-試行錯誤した結果、以下が判明しています。
-
-- 古いOpenSSL（バージョン 1.1）が必要
-- gccが必要
-- makeが必要
-- インストール時にディレクトリを指定する必要がある
-
-スクリプトで作成したUbuntuはこれらを反映した状態で起動します。
-
-ConfDのインストール先は /usr/lib/confd としています。
-
-<br><br>
-
-ここからはUbuntuのコンソールで作業します。
+ここからはラボ内のUbuntuのコンソールで作業します。
 
 作業はroot特権で行います。
 
@@ -257,12 +328,15 @@ cisco@confd:~$ confdc --version
 confd-8.0.20
 ```
 
-<br>
+<br><br>
 
-サンプルディレクトリへ移動します。
+## 動作確認
+
+インストールしたディレクトリ内にサンプルが提供されていますので、それが動くか確認します。
 
 ```bash
-cd /usr/lib/confd/examples.confd/intro/python/1-2-3-start-query-model
+cd $CONFD_DIR
+cd examples.confd/intro/python/1-2-3-start-query-model
 ```
 
 YANGモデルをコンパイルします。
@@ -285,7 +359,7 @@ ln -s /usr/lib/confd/etc/confd/ssh ssh-keydir
 Python build complete
 ```
 
-ConfDデーモンを起動します。
+ConfDデーモンおよびPythonスクリプトを起動します。
 
 フォアグラウンドで起動されますので、バックグランドに回します。
 
@@ -299,42 +373,49 @@ CLIで確認します。
 confd_cli -u admin
 ```
 
-CLIが起動したら、'show running-config' など、Ciscoライクなコマンドを試してみて、動作することを確認します。
+もしくは、
 
+```bash
+make cli
+```
+
+CLIが起動したら、'show running-config' など、Ciscoライクなコマンドを試してみて、動作することを確認します。
 
 動作確認ができたらバックグランドに回した make start を停止します。
 
 ```bash
-kill %%
+make stop
 ```
 
-
+dhcpd_conf.pyというスクリプトも同時に走っていますが、
+もしこのプロセスが残ってしまっていたら、手作業で停止します。
 
 ```bash
-confd -c confd.conf --addloadpath $CONFD_DIR/src/confd/standard
+pkill -f dhcpd_conf.py
 ```
 
-confd -c ./confd.conf --addloadpath ./loadpath --addloadpath /usr/lib/confd/src/confd/standard
+<br><br>
 
-confd_cli -u admin -c "show yang-modules | include example"
-ls -la ./loadpath/
+## confdの設定
 
+confdは `confd -c 設定ファイル名` で起動します。
 
-停止
+設定ファイルはXML形式です。
 
-```bash
-confd --stop || true
+コンフィグのデータベースの位置は変えないほうがいいです。
+設定できなくなります。
+
+この部分です。
+
+```xml
+  <cdb>
+    <enabled>true</enabled>
+    <dbDir>/usr/lib/confd/var/confd/cdb</dbDir>
 ```
 
-```bash
-pkill -f subscribe.py || true
-```
+<br>
 
-
-
-
-
-ArcOSの場合のConfDの設定
+### ArcOSにおけるConfDの設定
 
 `cat /usr/etc/confd/confd.conf`
 
