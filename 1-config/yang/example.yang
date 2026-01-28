@@ -1,0 +1,440 @@
+module example {
+  namespace "http://example.com/ns/config";
+  prefix ex;
+
+  import tailf-common {
+    prefix tailf;
+  }
+
+  // ip-address 型を使用するために必要
+  import ietf-inet-types {
+    prefix inet;
+  }
+
+  organization "Example Corp";
+  contact "support@example.com";
+
+  description
+    "シンプルなサーバー設定モジュール
+
+     【このモジュールの目的】
+     ConfDの基本的な機能を学習するためのサンプルモジュール
+     - 設定データ（Configuration Data）の定義方法
+     - 運用状態データ（Operational State Data）の定義方法
+     - Pythonデータプロバイダとの連携方法
+
+     【提供機能】
+     - サーバーのIPアドレス設定（設定可能）
+     - サーバーの稼働状態情報（読み取り専用）
+
+     【学習ポイント】
+     - config true/false の使い分け
+     - tailf:callpoint の使用方法
+     - import文による型の再利用";
+
+  revision 2026-01-26 {
+    description "初版リリース。基本的なサーバー設定と状態表示機能を提供";
+  }
+
+  // =============================================================================
+  // Configuration Data
+  // =============================================================================
+  // 【設定データ】
+  // ユーザーが変更可能な永続的な設定情報
+  // CDBに保存され、デバイス再起動後も保持される
+
+  container server-config {
+    description
+      "サーバー設定パラメータ
+
+       【このコンテナの役割】
+       - 管理者が変更可能な設定データを格納
+       - CDB (Configuration Database) に永続化
+       - デバイス再起動後も設定が保持される
+
+       【設定データの特徴】
+       - デフォルトで config true（設定可能）
+       - NETCONF/RESTCONFで変更可能
+       - トランザクション管理される
+       - コミット時にバリデーションされる
+
+       【CLI例】
+       config
+         server-config
+           ip-address 192.168.1.100
+         commit";
+
+    leaf ip-address {
+      type inet:ip-address;
+      default "127.0.0.1";
+      description
+        "サーバーが接続を受け付けるIPアドレス
+
+         【型の説明】
+         inet:ip-address は IPv4/IPv6 両対応の型
+         - IPv4例: 192.168.1.100
+         - IPv6例: 2001:db8::1
+
+         【デフォルト値】
+         127.0.0.1 (localhost)
+         外部からの接続を受け付けない安全なデフォルト
+
+         【使用シーン】
+         - 開発環境: 127.0.0.1 (ローカルのみ)
+         - 本番環境: 0.0.0.0 (全インタフェース) または特定IP
+
+         【セキュリティ考慮】
+         0.0.0.0 を設定すると全インタフェースで待ち受けるため
+         ファイアウォール設定との併用を推奨";
+    }
+
+    // 【将来の拡張例】
+    // 以下のような設定項目を追加可能
+    /*
+    leaf port {
+      type inet:port-number;  // 0-65535
+      default "8080";
+      description "サーバーが待ち受けるポート番号";
+    }
+
+    leaf max-connections {
+      type uint32;
+      default "100";
+      description "同時接続の最大数";
+    }
+
+    leaf-list allowed-clients {
+      type inet:ip-address;
+      description "接続を許可するクライアントIPのリスト";
+    }
+
+    container tls {
+      description "TLS/SSL設定";
+
+      leaf enabled {
+        type boolean;
+        default "false";
+        description "TLS/SSLの有効化";
+      }
+
+      leaf certificate-path {
+        type string;
+        description "証明書ファイルのパス";
+      }
+
+      leaf private-key-path {
+        type string;
+        description "秘密鍵ファイルのパス";
+      }
+    }
+    */
+  }
+
+  // =============================================================================
+  // Operational State Data
+  // =============================================================================
+  // 【運用状態データ】
+  // システムが動的に生成する読み取り専用の情報
+  // 設定ではなく、実行時の状態を表現
+
+  container server-status {
+    config false; // 読み取り専用（オペレーショナルデータ）
+                  // 【重要】config false により以下の特徴:
+                  // - ユーザーは読み取りのみ可能
+                  // - CDBには保存されない
+                  // - データプロバイダが値を動的に提供
+
+    description
+      "サーバー運用状態情報
+
+       【オペレーショナルデータとは】
+       システムの実行時状態を表す読み取り専用データ
+       - config false でマークする
+       - CDBには保存されない（揮発性）
+       - データプロバイダ（Python等）が値を生成
+       - モニタリングや診断に使用
+
+       【設定データとの違い】
+       設定データ（config true）:
+         - ユーザーが設定する「あるべき姿」
+         - 例: 「IPアドレスを192.168.1.100に設定する」
+
+       オペレーショナルデータ（config false）:
+         - システムが報告する「現在の状態」
+         - 例: 「サーバーは現在稼働中で、稼働時間は2時間15分」
+
+       【アクセス方法】
+       NETCONF: <get>操作で取得
+       CLI: show コマンドで表示
+       RESTCONF: GET /restconf/data/example:server-status
+
+       【データの鮮度】
+       アクセスの度にPythonデータプロバイダが
+       最新の状態を計算して返す";
+
+    tailf:callpoint server_status_cp;
+    // 【tailf:callpoint の役割】
+    // データプロバイダの登録名を指定
+    //
+    // Python側での実装:
+    //   class ServerStatusDP(ncs.dp.Action):
+    //       @Action.action
+    //       def cb_action(self, uinfo, name, kp, input, output):
+    //           # ここで動的にデータを生成
+    //           pass
+    //
+    // この名前（server_status_cp）でConfDとPythonを紐付け
+    // ConfDがこのコンテナの値を要求すると、
+    // Pythonの対応するコールバック関数が呼ばれる
+
+    leaf uptime {
+      type string;
+      description
+        "サーバー稼働時間メッセージ
+
+         【表示内容】
+         人間が読みやすい形式でサーバーの稼働時間を表示
+
+         【表示例】
+         - 'Up and running! (Uptime: 2h 15m)'
+         - 'Up and running! (Uptime: 1d 5h 30m)'
+         - 'Server started at 2026-01-26 10:00:00'
+
+         【実装例（Python側）】
+         import time
+         start_time = time.time()
+
+         def get_uptime():
+             uptime_seconds = time.time() - start_time
+             hours = int(uptime_seconds // 3600)
+             minutes = int((uptime_seconds % 3600) // 60)
+             return f'Up and running! (Uptime: {hours}h {minutes}m)'
+
+         【使用シーン】
+         - 監視システムでサーバーの稼働確認
+         - 再起動後の動作確認
+         - 障害調査時のタイムライン確認";
+    }
+
+    leaf last-checked-at {
+      type string;
+      description
+        "最終確認時刻
+
+         【表示内容】
+         このステータスが最後に確認された時刻
+
+         【フォーマット】
+         HH:MM:SS 形式（24時間表記）
+
+         【表示例】
+         - '14:30:45'
+         - '09:05:12'
+         - '23:59:59'
+
+         【実装例（Python側）】
+         from datetime import datetime
+
+         def get_current_time():
+             return datetime.now().strftime('%H:%M:%S')
+
+         【使用シーン】
+         - データの鮮度確認
+         - 自動更新の動作確認
+         - キャッシュの有効性判断
+
+         【注意点】
+         この時刻はデータプロバイダが呼ばれた時刻であり、
+         実際のサーバーの状態変更時刻とは異なる場合がある";
+    }
+
+    // 【将来の拡張例】
+    // より詳細な状態情報を追加可能
+    /*
+    leaf process-id {
+      type uint32;
+      description "サーバープロセスのPID";
+    }
+
+    leaf memory-usage {
+      type uint64;
+      units "bytes";
+      description "メモリ使用量（バイト）";
+    }
+
+    leaf cpu-usage {
+      type decimal64 {
+        fraction-digits 2;
+        range "0.00..100.00";
+      }
+      units "percent";
+      description "CPU使用率（パーセント）";
+    }
+
+    leaf active-connections {
+      type uint32;
+      description "現在のアクティブ接続数";
+    }
+
+    leaf total-requests {
+      type yang:counter64;
+      description "起動後の総リクエスト数";
+    }
+
+    container health-check {
+      description "ヘルスチェック結果";
+
+      leaf status {
+        type enumeration {
+          enum healthy;
+          enum degraded;
+          enum unhealthy;
+        }
+        description "ヘルスステータス";
+      }
+
+      leaf last-check {
+        type yang:date-and-time;
+        description "最終チェック時刻（ISO 8601形式）";
+      }
+
+      leaf-list issues {
+        type string;
+        description "検出された問題のリスト";
+      }
+    }
+    */
+  }
+
+  // =============================================================================
+  // RPC Operations (optional - for future extension)
+  // =============================================================================
+  // 【RPC（リモートプロシージャコール）】
+  // サーバーに対する操作を定義
+  // 設定変更ではなく、アクションの実行に使用
+
+  /*
+  rpc restart-server {
+    description
+      "サーバーを再起動する
+
+       【RPCとは】
+       YANG RPCは、サーバーに対する操作を定義する機能
+       - 設定の読み書きではなく、アクションの実行
+       - 入力パラメータと出力結果を定義可能
+       - NETCONF/RESTCONF経由で呼び出し
+
+       【この操作の動作】
+       1. 現在実行中のサーバープロセスを停止
+       2. 設定を再読み込み
+       3. サーバープロセスを再起動
+       4. 結果メッセージを返す
+
+       【呼び出し例（NETCONF）】
+       <rpc>
+         <restart-server xmlns='http://example.com/ns/config'/>
+       </rpc>
+
+       【呼び出し例（CLI）】
+       request restart-server
+
+       【呼び出し例（RESTCONF）】
+       POST /restconf/operations/example:restart-server
+       Content-Type: application/yang-data+json
+       {}
+
+       【実装例（Python側）】
+       class RestartServerAction(Action):
+           @Action.action
+           def cb_action(self, uinfo, name, kp, input, output):
+               try:
+                   # サーバー再起動処理
+                   restart_process()
+                   output.status = 'Server restarted successfully'
+               except Exception as e:
+                   output.status = f'Restart failed: {str(e)}'
+
+       【使用シーン】
+       - 設定変更後の反映
+       - 障害発生時の復旧
+       - メンテナンス作業";
+
+    // 入力パラメータ（この例では不要）
+    // input {
+    //   leaf force {
+    //     type boolean;
+    //     default false;
+    //     description "強制再起動フラグ";
+    //   }
+    // }
+
+    output {
+      leaf status {
+        type string;
+        description
+          "再起動操作の結果メッセージ
+
+           【成功例】
+           'Server restarted successfully'
+           'Server restarted successfully at 2026-01-26 14:30:45'
+
+           【失敗例】
+           'Restart failed: permission denied'
+           'Restart failed: server not running'";
+      }
+
+      // 追加の出力パラメータ例
+      // leaf new-process-id {
+      //   type uint32;
+      //   description "再起動後の新しいプロセスID";
+      // }
+      //
+      // leaf restart-duration {
+      //   type uint32;
+      //   units "milliseconds";
+      //   description "再起動にかかった時間";
+      // }
+    }
+  }
+  */
+
+  // 【その他のRPC例】
+  /*
+  rpc clear-statistics {
+    description "統計情報をクリアする";
+    output {
+      leaf cleared-counters {
+        type uint32;
+        description "クリアされたカウンタの数";
+      }
+    }
+  }
+
+  rpc check-connectivity {
+    description "特定のホストへの接続をテストする";
+    input {
+      leaf host {
+        type inet:host;
+        mandatory true;
+        description "テスト対象のホスト";
+      }
+      leaf port {
+        type inet:port-number;
+        default "80";
+        description "テスト対象のポート";
+      }
+    }
+    output {
+      leaf reachable {
+        type boolean;
+        description "到達可能かどうか";
+      }
+      leaf response-time {
+        type uint32;
+        units "milliseconds";
+        description "応答時間";
+      }
+    }
+  }
+  */
+}

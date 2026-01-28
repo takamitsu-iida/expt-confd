@@ -10,14 +10,19 @@ bin/cml_env
 terminal_log*.txt
 
 # ログディレクトリ
-./log
+log/
 
 # 一時ディレクトリ
-./tmp
+tmp/
 
-# confdファイル
-./confd-state
-./loadpath
+# confdのディレクトリ
+loadpath/
+confd-cdb/
+confd-state/
+ssh-keydir/
+
+# サブディレクトリの中のconfd.confを無視する（自動生成のため）
+**/confd.conf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
