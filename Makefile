@@ -57,7 +57,7 @@ clean:
 	rm -rf $(LOG_DIR)/*
 
 # ConfD 起動
-start: all
+start: stop all
 	confd -c $(CONFIG_FILE)
 
 # ConfD 停止
