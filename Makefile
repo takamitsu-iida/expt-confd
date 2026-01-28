@@ -21,6 +21,18 @@ OPENCONFIG_FXS_FILES = $(patsubst $(OPENCONFIG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs
 FXS_FILES = $(LOADPATH_DIR)/example.fxs $(LOADPATH_DIR)/network-device.fxs $(OPENCONFIG_FXS_FILES)
 NS_FILES  = $(BIN_DIR)/example_ns.py $(BIN_DIR)/network_device_ns.py
 
+usage:
+	@echo "make all     Build all example files for Python"
+	@echo "make clean   Remove all built and intermediary files"
+	@echo "make start   Start CONFD daemon and python example agent"
+	@echo "make stop    Stop any CONFD daemon and example agent"
+	@echo "make cli     Start the CONFD Command Line Interface, J-style"
+	@echo "make cli-c   Start the CONFD Command Line Interface, C-style"
+
+
+# %_ns.py: %.fxs
+# 	$(CONFDC) $(CONFDC_PYTHON_FLAGS) --emit-python $*_ns.py $*.fxs
+
 # デフォルトターゲット
 all: $(FXS_FILES) $(NS_FILES)
 
@@ -64,8 +76,9 @@ start: stop all
 stop:
 	confd --stop || true
 
-# デバッグ用: どのファイルが対象か確認
-.PHONY: all clean start stop debug
-debug:
-	@echo "FXS_FILES = $(FXS_FILES)"
-	@echo "NS_FILES = $(NS_FILES)"
+# ConfD CLI 起動
+cli:
+	$(CONFD_DIR)/bin/confd_cli --user=admin --groups=admin --interactive || echo Exit
+
+cli-c:
+	$(CONFD_DIR)/bin/confd_cli -C --user=admin --groups=admin --interactive || echo Exit
