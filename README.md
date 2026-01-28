@@ -333,11 +333,165 @@ pkill -f subscribe.py || true
 
 
 
-<!--
 
-ArcOSの場合、/usr/share/arcos/uiにfxsファイルが多数格納されてます。
-これがload_dirだと思われます。
+ArcOSの場合のConfDの設定
 
+`cat /usr/etc/confd/confd.conf`
 
-
--->
+```xml
+<!-- -*- nxml -*- -->
+<confdConfig xmlns="http://tail-f.com/ns/confd_cfg/1.0">
+  <loadPath>
+    <dir>/usr/etc/confd</dir>
+    <dir>/usr/etc/confd/snmp</dir>
+    <dir>/usr/share/arcos/ui</dir>
+  </loadPath>
+  <runtimeReconfiguration>namespace</runtimeReconfiguration>
+  <cryptHash>
+    <algorithm>sha-512</algorithm>
+  </cryptHash>
+  <scripts>
+    <dir>/usr/share/arcos/confd-scripts</dir>
+  </scripts>
+  <stateDir>/var/confd/state</stateDir>
+  <cdb>
+    <enabled>true</enabled>
+    <dbDir>/var/confd/cdb</dbDir>
+    <clientTimeout>PT1800S</clientTimeout>
+    <operational>
+      <enabled>true</enabled>
+    </operational>
+  </cdb>
+  <datastores>
+    <startup>
+      <enabled>false</enabled>
+    </startup>
+    <candidate>
+      <enabled>true</enabled>
+      <implementation>confd</implementation>
+      <storage>auto</storage>
+      <filename>/var/confd/candidate/candidate.db</filename>
+      <confirmedCommit>
+        <revertByCommit>true</revertByCommit>
+      </confirmedCommit>
+    </candidate>
+    <running>
+      <access>writable-through-candidate</access>
+    </running>
+  </datastores>
+  <enableAttributes>true</enableAttributes>
+  <enableInactive>false</enableInactive>
+  <rollback>
+    <enabled>true</enabled>
+    <directory>/var/confd/rollback</directory>
+    <historySize>50</historySize>
+    <type>delta</type>
+  </rollback>
+  <aaa>
+    <sshServerKeyDir>/etc/ssh</sshServerKeyDir>
+    <aaaBridge>
+      <enabled>false</enabled>
+      <file>/usr/etc/confd/aaa.conf</file>
+    </aaaBridge>
+  </aaa>
+  <cli>
+    <ssh>
+      <enabled>false</enabled>
+    </ssh>
+    <nmda>
+      <showOperationalState>true</showOperationalState>
+    </nmda>
+  </cli>
+  <netconf>
+    <capabilities>
+      <startup>
+        <enabled>false</enabled>
+      </startup>
+      <candidate>
+        <enabled>true</enabled>
+      </candidate>
+      <confirmed-commit>
+        <enabled>true</enabled>
+      </confirmed-commit>
+      <writable-running>
+        <enabled>false</enabled>
+      </writable-running>
+      <rollback-on-error>
+        <enabled>true</enabled>
+      </rollback-on-error>
+      <url>
+        <enabled>true</enabled>
+        <file>
+          <enabled>true</enabled>
+          <rootDir>/var/confd/state</rootDir>
+        </file>
+        <ftp>
+          <enabled>true</enabled>
+        </ftp>
+      </url>
+      <xpath>
+        <enabled>true</enabled>
+      </xpath>
+      <notification>
+        <enabled>true</enabled>
+        <interleave>
+          <enabled>false</enabled>
+        </interleave>
+      </notification>
+    </capabilities>
+  </netconf>
+  <notifications>
+    <eventStreams>
+      <stream>
+        <name>interface</name>
+        <description>notifications stream</description>
+        <replaySupport>true</replaySupport>
+        <builtinReplayStore>
+          <!-- enableBuiltinReplayStore -->
+          <dir>./</dir>
+          <maxSize>S1M</maxSize>
+          <maxFiles>5</maxFiles>
+        </builtinReplayStore>
+      </stream>
+    </eventStreams>
+  </notifications>
+  <ignoreBindErrors>
+    <enabled>true</enabled>
+  </ignoreBindErrors>
+  <logs>
+    <syslogConfig>
+      <facility>daemon</facility>
+    </syslogConfig>
+    <confdLog>
+      <enabled>true</enabled>
+      <file>
+        <enabled>true</enabled>
+        <name>/var/log/arcos/confd/confd.log</name>
+      </file>
+      <syslog>
+        <enabled>false</enabled>
+      </syslog>
+    </confdLog>
+    <developerLog>
+      <enabled>true</enabled>
+      <file>
+        <enabled>true</enabled>
+        <name>/var/log/arcos/confd/devel.log</name>
+      </file>
+      <syslog>
+        <enabled>false</enabled>
+      </syslog>
+    </developerLog>
+    <auditLog>
+      <enabled>true</enabled>
+      <file>
+        <enabled>true</enabled>
+        <name>/var/log/arcos/confd/audit.log</name>
+      </file>
+      <syslog>
+        <enabled>false</enabled>
+      </syslog>
+    </auditLog>
+  </logs>
+</confdConfig>
+```
