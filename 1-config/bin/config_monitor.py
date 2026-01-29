@@ -24,10 +24,12 @@ from pathlib import Path
 from typing import List, Optional
 
 try:
-    import _confd.cdb as cdb
+    import _confd.cdb as cdb  # type: ignore
 except ImportError:
     print("Error: Could not import _confd.cdb module. Make sure ConfD is installed and PYTHONPATH is set correctly.")
     sys.exit(1)
+
+import _confd.maapi as maapi  # type: ignore
 
 # =============================================================================
 # 定数定義
@@ -238,28 +240,17 @@ def read_full_configuration() -> None:
 
         print("--- Full Configuration Dump ---")
 
-        # ルートから設定全体を取得
-        try:
-            # save_config()を使用して設定全体を取得
-            config_data = cdb.save_config(read_sock, cdb.RUNNING, "/")
-            print(config_data.decode('utf-8') if isinstance(config_data, bytes) else config_data)
-        except AttributeError:
-            # save_configが使えない場合は、get_objectを使用
+        # 監視対象のパスから設定を取得
+        for path in WATCHED_PATHS:
             try:
-                obj = cdb.get_object(read_sock, "/")
-                print(f"Configuration object: {obj}")
-            except Exception as e:
-                print(f"Could not retrieve full config: {e}")
-                # フォールバック: 監視対象パスのみ表示
-                print("\nFalling back to watched paths:")
-                for path in WATCHED_PATHS:
-                    try:
-                        val = cdb.get(read_sock, path)
-                        print(f"  {path} = {val}")
-                    except Exception as path_e:
-                        print(f"  {path} -> Error: {path_e}")
+                val = cdb.get(read_sock, path)
+                print(f"  {path} = {val}")
+            except Exception as path_e:
+                print(f"  {path} -> Error: {path_e}")
 
         cdb.end_session(read_sock)
+    except Exception as e:
+        print(f"Could not retrieve configuration: {e}")
     finally:
         read_sock.close()
 

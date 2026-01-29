@@ -24,6 +24,9 @@ ssh-keydir/
 # サブディレクトリの中のconfd.confを無視する（自動生成のため）
 **/confd.conf
 
+# 名前空間用のPythonファイル（自動生成のため）
+*_ns.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
