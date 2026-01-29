@@ -33,8 +33,12 @@ except ImportError:
 # 定数定義
 # =============================================================================
 
+# スクリプトのファイル名の拡張子を取り除いた名前
+# SCRIPT_BASE = Path(__file__).
+
 # スクリプトのディレクトリを基準にパスを設定
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+
 TMP_DIR = SCRIPT_DIR / 'tmp'
 LOG_DIR = SCRIPT_DIR / 'log'
 
