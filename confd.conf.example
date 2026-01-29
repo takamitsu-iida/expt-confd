@@ -22,7 +22,6 @@
   <loadPath>
     <dir>.</dir>
     <dir>./loadpath</dir>
-    <dir>$CONFD_DIR/etc/confd</dir>
   </loadPath>
 
   <stateDir>./confd-state</stateDir>
@@ -32,6 +31,7 @@
   <cdb>
     <enabled>true</enabled>
     <dbDir>./confd-cdb</dbDir>
+
     <operational>
       <enabled>true</enabled>
     </operational>

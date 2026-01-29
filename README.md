@@ -4,7 +4,9 @@
 
 ConfDのベーシック版は無料で使えますので、実際に動かしてみます。
 
-日常使っているWSLのUbuntuは汚したくないので、CML上にUbuntuを立てて、そこで試してみます。
+コンフィグの生成や検証といった作業は日常使っているWSLのUbuntuで実行できるようにした方が便利です。
+
+ナンチャッテアプライアンスを作る、みたいな作業であれば、CML上にUbuntuを立てた方がいいでしょう。
 
 <br><br>
 
@@ -24,6 +26,7 @@ x86_64の方のzipファイルをダウンロードします。
 
 今回ダウンロードしたのは　`confd-basic-8.0.20.linux.x86_64.signed.zip`　です。
 
+CML上のUbuntuにインストールするのであれば、
 これをHyper-Vホストになっている母艦の `C:\inetpub\wwwroot` においておきます。
 
 <br><br>
@@ -40,11 +43,11 @@ x86_64の方のzipファイルをダウンロードします。
 
 ## WSL(Ubuntu)にインストール
 
-普段使っているWSL(Ubuntu)にインストールするのが手っ取り早いです。
+普段使っているWSL(Ubuntu)にインストールすると、いつでもConfDを使えて便利です。
 
-インストール先は ~/confd とします。
+いつでも消せるように、インストール先は `~/confd` とします。
 
-1. ~/tmpにダウンロードしたzipファイルを置きます。
+1. `~/tmp`にダウンロードしたzipファイルを置きます。
 
 2. unzipで解凍します。
 
@@ -96,7 +99,7 @@ INFO  Environment set-up generated in /home/iida/confd/confdrc
 INFO  ConfD installation script finished
 ```
 
-~/confd/confdrc を読み込むように、~/.bashrcを変更します。
+`~/confd/confdrc` を読み込むように、`~/.bashrc`を変更します。
 
 ```bash
 cat - << 'EOS' >> ~/.bashrc
@@ -106,6 +109,18 @@ if [ -f ~/confd/confdrc ]; then
     source ~/confd/confdrc
 fi
 EOS
+```
+
+一度抜けて、WSL(Ubuntu)を開き直します。
+
+コンパイラ `confdc` がPATHに存在するか、確認します。
+
+```bash
+cisco@confd:~$ which confdc
+/usr/lib/confd/bin/confdc
+
+cisco@confd:~$ confdc --version
+confd-8.0.20
 ```
 
 <br><br>
@@ -157,7 +172,7 @@ cd cml
 makeコマンドでラボを作成します。
 
 ```bash
-iida@s400win:~/git/expt-confd/cml$ make
+$ make
 create                         ラボをCML上に作成する
 start                          ラボを開始する
 stop                           ラボを停止する
@@ -168,7 +183,7 @@ terminal                       ルータのコンソールに接続する
 作成　`make create`
 
 ```bash
-iida@s400win:~/git/expt-confd/cml$ make create
+$ make create
 ../bin/cml_create_confd_host.py --create --title "ConfD Lab" --description "ConfD lab for testing"
 2026-01-26 11:30:17,310 - INFO - Lab 'ConfD Lab' created successfully
 2026-01-26 11:30:17,310 - INFO - id: d05b8d5c-76e2-4795-bc1f-109fd5eb9a42
@@ -177,7 +192,7 @@ iida@s400win:~/git/expt-confd/cml$ make create
 起動　`make start`
 
 ```bash
-iida@s400win:~/git/expt-confd/cml$ make start
+$ make start
 ../bin/cml_create_confd_host.py --start --title "ConfD Lab"
 2026-01-26 11:30:39,154 - INFO - Starting lab 'ConfD Lab'
 2026-01-26 11:30:59,218 - INFO - Lab 'ConfD Lab' started
@@ -186,7 +201,7 @@ iida@s400win:~/git/expt-confd/cml$ make start
 UbuntuのコンソールをWindows Terminalで開く　`make terminal`
 
 ```bash
-iida@s400win:~/git/expt-confd/cml$ make terminal
+$ make terminal
 ../bin/open_terminal.sh 7000
 ```
 
@@ -402,17 +417,6 @@ confdは `confd -c 設定ファイル名` で起動します。
 
 設定ファイルはXML形式です。
 
-コンフィグのデータベースの位置は変えないほうがいいです。
-設定できなくなります。
-
-この部分です。
-
-```xml
-  <cdb>
-    <enabled>true</enabled>
-    <dbDir>/usr/lib/confd/var/confd/cdb</dbDir>
-```
-
 <br>
 
 ### ArcOSにおけるConfDの設定
@@ -575,4 +579,35 @@ confdは `confd -c 設定ファイル名` で起動します。
     </auditLog>
   </logs>
 </confdConfig>
+```
+
+<br>
+
+### 注意事項
+
+- aaa_init.xmlが必要
+
+コンフィグのデータベースの位置には aaa_init.xml が必要です。
+このファイルがないと、設定できなくなります。
+
+confd.confでこのように設定した場合は ./confd-cdb/aaa_init.xml が必要です。
+
+ConfDをインストール場所からコピーするのが手っ取り早いです。
+
+```xml
+  <cdb>
+    <enabled>true</enabled>
+    <dbDir>./confd-cdb</dbDir>
+```
+
+<br>
+
+- ssh-keydirが必要
+
+これもConfDをインストールした先にあるものを流用します。
+
+コピーしてもいいですし、シンボリックリンクを張ってもいいです。
+
+```bash
+ln -s $CONFD_DIR/etc/confd/ssh ssh-keydir
 ```

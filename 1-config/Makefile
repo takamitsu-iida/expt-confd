@@ -86,12 +86,13 @@ start_confd: stop all
 
 # Pythonサブスクライバ起動
 start_subscriber:
-	python $(SUBSCRIBER)
+	python $(SUBSCRIBER) --start
 
 # ConfD 停止
 stop:
 	confd --stop || true
-	pkill -f $(SUBSCRIBER) || true
+	# pkill -f $(SUBSCRIBER) || true
+	python $(SUBSCRIBER) --stop || true
 
 # ConfD CLI 起動
 cli:
