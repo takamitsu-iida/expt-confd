@@ -2,14 +2,33 @@
 """
 ConfD設定変更監視デーモン
 
-このスクリプトはConfDの設定変更を監視し、変更があった場合にログに記録します。
-デーモンとして起動することも、フォアグラウンドで実行することも可能です。
+【概要】
+このスクリプトはConfDの設定変更を監視し、変更があった場合にファイルに書き出します。
+CDB Subscription APIを使用して実装されています。
 
-使用方法:
+【機能】
+- ConfDの設定変更をリアルタイムで監視
+- 設定値をconfd-cdb/config_monitor.confファイルに自動書き出し
+- デーモンモードとフォアグラウンドモードをサポート
+- WATCHED_PATHSに定義されたパスを動的に監視
+
+【動作フロー】
+1. 起動時: ConfDから初期設定を読み取り、ファイルに書き出し
+2. 監視中: 設定変更を検知したら、自動的にファイルを更新
+3. 終了時: シグナル(SIGINT/SIGTERM)を受信してグレースフルシャットダウン
+
+【使用方法】
     --start      : デーモンとして起動
     --stop       : デーモンを停止
     --status     : デーモンの状態を確認
     --foreground : フォアグラウンドで実行（テスト用）
+
+【設定の拡張方法】
+新しい設定項目を監視する場合は、WATCHED_PATHSリストに追加するだけです。
+例: WATCHED_PATHS = [
+        "/server-config/ip-address",
+        "/server-config/port",  # 新しいパスを追加
+    ]
 """
 
 import argparse
@@ -18,45 +37,177 @@ import os
 import signal
 import socket
 import sys
+import threading
 import time
 
 from pathlib import Path
 from typing import List, Optional
 
 try:
+    import _confd  # type: ignore
     import _confd.cdb as cdb  # type: ignore
 except ImportError:
     print("Error: Could not import _confd.cdb module. Make sure ConfD is installed and PYTHONPATH is set correctly.")
     sys.exit(1)
 
-import _confd.maapi as maapi  # type: ignore
+# ネームスペースモジュールのインポート
+import example_ns
 
 # =============================================================================
 # 定数定義
 # =============================================================================
 
 # スクリプトのファイル名の拡張子を取り除いた名前
-# SCRIPT_BASE = Path(__file__).
+SCRIPT_BASE = Path(__file__).stem
 
 # スクリプトのディレクトリを基準にパスを設定
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 
 TMP_DIR = SCRIPT_DIR / 'tmp'
 LOG_DIR = SCRIPT_DIR / 'log'
+CDB_DIR = SCRIPT_DIR / 'confd-cdb'
 
-# PIDファイルとログファイルのパス
-PID_FILE = TMP_DIR / 'subscribe.pid'
-LOG_FILE = LOG_DIR / 'subscribe.log'
+# PIDファイル
+PID_FILE = TMP_DIR / f'{SCRIPT_BASE}.pid'
+
+# ログファイル
+LOG_FILE = LOG_DIR / f'{SCRIPT_BASE}.log'
+
+# 設定ファイル
+CONFIG_FILE = CDB_DIR / f'{SCRIPT_BASE}.conf'
 
 # ConfD接続設定
 CONFD_HOST = '127.0.0.1'
 CONFD_PORT = 4565
 
 # 監視対象のパス（新しいパスはここに追加）
+# 【重要】新しい設定項目を監視する場合は、このリストに追加するだけでOK
+# 例: "/server-config/port", "/server-config/timeout" など
 WATCHED_PATHS = [
-    "/server-config/ip-address",
-    # 今後の監視対象をここに追加
+    "/server-config/ip-address",  # サーバーIPアドレス設定
+    # 今後の監視対象をここに追加（例: "/server-config/port"）
 ]
+
+# =============================================================================
+# Subscriberクラス
+# =============================================================================
+
+class Subscriber:
+    """
+    ConfDの設定変更を監視するサブスクライバークラス
+
+    【役割】
+    ConfD CDB Subscription APIを使用して、設定変更を監視します。
+
+    【動作原理】
+    1. __init__: ConfDに接続し、指定されたパスをサブスクライブ
+    2. loop: 設定変更を待機 → 読み取り → ACK のサイクルを実行
+    3. read_confd: ConfDから設定を読み取り、ファイルに書き出し
+
+    【引数】
+    prio: サブスクリプションの優先度（デフォルト: 100）
+    path: 監視対象のルートパス（デフォルト: '/'）
+    """
+    def __init__(self, prio=100, path='/'):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        self.path = path
+        self.prio = prio
+
+        # ConfDのCDBサブスクリプションソケットに接続
+        cdb.connect(self.sock, cdb.SUBSCRIPTION_SOCKET, CONFD_HOST, _confd.CONFD_PORT, self.path)
+
+        # 指定されたパスをサブスクライブ（example_ns.ns.hashでYANGモジュールを指定）
+        cdb.subscribe(self.sock, self.prio, example_ns.ns.hash, self.path)
+
+        # サブスクリプションの登録完了を通知
+        cdb.subscribe_done(self.sock)
+
+        print("Subscribed to {path}".format(path=self.path))
+
+    def loop(self):
+        """サブスクリプションループ：変更を待機→読み取り→ACK
+
+        【処理フロー】
+        1. wait(): ConfDからの変更通知を待機（ブロッキング）
+        2. read_confd(): 変更された設定を読み取り、ファイルに書き出し
+        3. ack(): 処理完了をConfDに通知（これがないと次の変更が届かない）
+        """
+        self.wait()
+        self.read_confd()
+        self.ack()
+
+    def wait(self):
+        """設定変更通知を待機（ブロッキング）
+
+        ConfDで設定が変更されるまでここでブロックされます。
+        """
+        cdb.read_subscription_socket(self.sock)
+
+    def ack(self):
+        """変更通知の処理完了をConfDに報告
+
+        この関数を呼ばないと、次の変更通知を受信できません。
+        """
+        cdb.sync_subscription_socket(self.sock, cdb.DONE_PRIORITY)
+
+    def read_confd(self):
+        """
+        ConfDから設定を読み取り、ファイルに書き出す
+
+        【処理内容】
+        1. ConfDに読み取り専用セッションを開始
+        2. WATCHED_PATHSに定義されたすべてのパスから設定値を取得
+        3. 一時ファイル(.tmp)に書き込み
+        4. セッションをクローズ
+
+        【ファイル形式】
+        # コメント行
+        設定名 = 値
+
+        【拡張性】
+        WATCHED_PATHSに新しいパスを追加すれば、自動的に読み取られます。
+        """
+        # ConfD CDB読み取り用のソケットを作成
+        rsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+
+        # CDBに接続し、RUNNINGデータストアのセッションを開始
+        cdb.connect(rsock, cdb.READ_SOCKET, CONFD_HOST, _confd.CONFD_PORT, '/')
+        cdb.start_session(rsock, cdb.RUNNING)
+
+        # YANGモジュールのネームスペースを設定
+        cdb.set_namespace(rsock, example_ns.ns.hash)
+
+        # 一時ファイルに書き込む（原子性を保つため.tmpを経由）
+        tmp_file = str(CONFIG_FILE) + ".tmp"
+        with open(tmp_file, "w") as fp:
+            # ヘッダーコメントを追加
+            fp.write("# Server Configuration\n")
+            fp.write("# Generated by config_monitor.py\n")
+            fp.write("# Do not edit manually - changes will be overwritten\n\n")
+
+            # WATCHED_PATHSの各パスを読み取る
+            for path in WATCHED_PATHS:
+                try:
+                    # ConfDから設定値を取得
+                    value = cdb.get(rsock, path)
+
+                    # パスから設定名を抽出（例: "/server-config/ip-address" → "ip-address"）
+                    config_name = path.split('/')[-1]
+
+                    # ファイルに書き込み
+                    fp.write(f"{config_name} = {value}\n")
+
+                    # コンソールにも出力（デバッグ用）
+                    print(f"  {path} = {value}")
+                except Exception as e:
+                    # エラーが発生しても他のパスの処理は継続
+                    print(f"Error reading {path}: {e}")
+
+        cdb.end_session(rsock)
+        rsock.close()
+
+        print("Configuration read from ConfD")
+
 
 # =============================================================================
 # デーモン管理関数
@@ -209,115 +360,100 @@ def status_daemon() -> None:
         print("Subscribe daemon is not running")
         cleanup_pid_file()
 
-# =============================================================================
-# ConfD購読処理
-# =============================================================================
-
-def setup_subscription(sock: socket.socket, paths: List[str]) -> None:
-    """
-    ConfDの購読を設定する
-
-    Args:
-        sock: ConfD接続用のソケット
-        paths: 監視対象のパスリスト
-    """
-    for path in paths:
-        cdb.subscribe(sock, 1, 0, path)
-
-    cdb.subscribe_done(sock)
-    print(f"Subscribed to {len(paths)} configuration paths")
-
-
-def read_full_configuration() -> None:
-    """
-    設定の全文を読み取って表示する
-    """
-    read_sock = socket.socket()
-    cdb.connect(read_sock, cdb.DATA_SOCKET, CONFD_HOST, CONFD_PORT)
-
-    try:
-        cdb.start_session(read_sock, cdb.RUNNING)
-
-        print("--- Full Configuration Dump ---")
-
-        # 監視対象のパスから設定を取得
-        for path in WATCHED_PATHS:
-            try:
-                val = cdb.get(read_sock, path)
-                print(f"  {path} = {val}")
-            except Exception as path_e:
-                print(f"  {path} -> Error: {path_e}")
-
-        cdb.end_session(read_sock)
-    except Exception as e:
-        print(f"Could not retrieve configuration: {e}")
-    finally:
-        read_sock.close()
-
-
-def read_configuration_values(paths: List[str]) -> None:
-    """
-    設定値を読み取って表示する
-
-    Args:
-        paths: 読み取り対象のパスリスト
-    """
-    # 読み取り専用セッションを開始
-    read_sock = socket.socket()
-    cdb.connect(read_sock, cdb.DATA_SOCKET, CONFD_HOST, CONFD_PORT)
-
-    try:
-        cdb.start_session(read_sock, cdb.RUNNING)
-
-        print("--- Config Update Detected ---")
-        for path in paths:
-            try:
-                val = cdb.get(read_sock, path)
-                print(f"  {path} = {val}")
-            except Exception as e:
-                print(f"  {path} -> Error: {e}")
-
-        cdb.end_session(read_sock)
-    finally:
-        read_sock.close()
-
-
 def run_subscription_loop() -> None:
     """
     ConfDの設定変更を監視するメインループ
 
-    設定変更が検知されると、変更された値を読み取って表示します。
-    """
-    # 購読用ソケットをセットアップ
-    cdb_sock = socket.socket()
-    cdb.connect(cdb_sock, cdb.DATA_SOCKET, CONFD_HOST, CONFD_PORT)
+    【処理フロー】
+    1. 初期化: Subscriberを作成し、初期設定をファイルに書き出し
+    2. 監視: バックグラウンドスレッドで設定変更を待機
+    3. 更新: 変更検知時に自動的にファイルを更新
+    4. 終了: シグナル受信時にグレースフルシャットダウン
 
-    # 監視対象パスを購読
-    setup_subscription(cdb_sock, WATCHED_PATHS)
+    【スレッド構成】
+    - メインスレッド: stop_event.wait()で終了シグナルを待機
+    - サブスレッド: sub.loop()で設定変更を監視し、ファイルを更新
+    """
+    # CDBディレクトリを作成（存在しない場合）
+    CDB_DIR.mkdir(exist_ok=True)
+
+    # Subscriberをセットアップ（優先度10、パス='/server-config'）
+    sub = Subscriber(10, '/server-config')
+
+    # ==========================================
+    # 初期設定の読み取り
+    # ==========================================
+    # 起動時にConfDから現在の設定を読み取り、ファイルに書き出す
+    sub.read_confd()
+
+    # 一時ファイルを本番用にリネーム（原子性を保つ）
+    tmp_file = str(CONFIG_FILE) + ".tmp"
+    if os.path.exists(tmp_file):
+        os.rename(tmp_file, str(CONFIG_FILE))
+        print(f"Initial configuration written to {CONFIG_FILE}")
+
+    # ==========================================
+    # 終了処理の準備
+    # ==========================================
+    # threading.Event()でグレースフルシャットダウンを実現
+    # （time.sleep()の無限ループよりもCPU効率が良い）
+    stop_event = threading.Event()
+
+    def signal_handler(signum, frame):
+        """シグナルハンドラー：Ctrl-CやSIGTERMで終了イベントをセット"""
+        print("\nShutdown signal received...")
+        stop_event.set()
+
+    # シグナルハンドラーを設定（Ctrl-C と kill コマンドの両方に対応）
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl-C
+    signal.signal(signal.SIGTERM, signal_handler)  # kill コマンド
+
+    # ==========================================
+    # サブスクリプションスレッドの定義と起動
+    # ==========================================
+    def subscription_worker():
+        """サブスクリプション処理を行うバックグラウンドスレッド
+
+        【命名について】
+        この関数は設定変更を監視するワーカースレッドとして動作します。
+
+        【処理内容】
+        1. 一時ファイルを本番ファイルにリネーム（前回の変更を反映）
+        2. sub.loop()で次の変更を待機（ブロッキング）
+        3. 変更検知後、read_confd()で新しい設定を読み取り
+        4. 上記を繰り返す（stop_eventがセットされるまで）
+        """
+        while not stop_event.is_set():
+            try:
+                # 前回の変更で生成された一時ファイルを本番用にリネーム
+                tmp_file = str(CONFIG_FILE) + ".tmp"
+                if os.path.exists(tmp_file):
+                    os.rename(tmp_file, str(CONFIG_FILE))
+                    print(f"Configuration updated in {CONFIG_FILE}")
+
+                # 次の変更を待機（sub.loop()内でwait→read→ackを実行）
+                sub.loop()
+                print("Configuration changed")
+            except Exception as e:
+                # 終了シグナルでない場合のみエラー表示
+                if not stop_event.is_set():
+                    print(f"Error in subscription loop: {e}")
+                break
+
+    # バックグラウンドスレッドとしてサブスクリプション処理を開始
+    # daemon=Trueにより、メインスレッド終了時に自動的に終了
+    thread = threading.Thread(target=subscription_worker, daemon=True)
+    thread.start()
 
     print("Waiting for configuration changes...")
+    print("Press Ctrl-C to stop")
 
-    try:
-        while True:
-            # 変更通知を待機(ブロッキング)
-            cdb.read_subscription_socket(cdb_sock)
-
-            # 変更された設定値を読み取る
-            read_configuration_values(WATCHED_PATHS)
-
-            # 設定の全文を取得
-            read_full_configuration()
-
-            # 通知処理の完了を報告(これがないと次の変更が届かない)
-            cdb.sync_subscription_socket(cdb_sock, 1)
-
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-    except Exception as e:
-        print(f"Error in subscription loop: {e}")
-        raise
-    finally:
-        cdb_sock.close()
+    # ==========================================
+    # メインスレッド: 終了シグナルを待機
+    # ==========================================
+    # stop_event.wait()でブロック（CPUを消費せず効率的に待機）
+    # シグナルハンドラーがstop_event.set()を呼ぶまでここで待機
+    stop_event.wait()
 
 # =============================================================================
 # メイン関数
