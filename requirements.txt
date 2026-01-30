@@ -6,3 +6,6 @@ virl2-client==2.9
 
 # YANG
 pyang
+
+# netconf-console
+paramiko

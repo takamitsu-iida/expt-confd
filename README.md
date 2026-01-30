@@ -35,9 +35,26 @@ CML上のUbuntuにインストールするのであれば、
 
 試行錯誤した結果、以下が判明しています。
 
-- 古いOpenSSL（バージョン 1.1）が必要
+- xmllintが必要（libxml2-utilsに含まれる）
 - gccが必要
 - makeが必要
+- 古いOpenSSL 1.1が必要（ダウンロードしてインストール）
+- Pythonモジュール paramikoが必要（pipでインストール）
+
+他にも入れておいたほうがよいものがあります。概ね以下のようなものが入っていれば大丈夫です。
+
+- jq
+- yq
+- libxml2-utils  # for xmllint
+- curl
+- wget
+- git
+- zip
+- unzip
+- make
+- python3-venv
+- direnv
+- gcc  # for ConfD build
 
 <br><br>
 
