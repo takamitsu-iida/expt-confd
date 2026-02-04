@@ -14,8 +14,11 @@ usage:
 # OpenConfig の代表的なトップレベルモジュールを指定
 YANG_BASE = openconfig-system
 
-# example.yangからexample.fxsを生成し、さらにexample_ns.pyを生成する
-TARGET = bin/$(YANG_BASE)_ns.py
+# Python モジュール名用に、YANG モジュール名の '-' を '_' に変換
+YANG_BASE_PY = $(subst -,_,$(YANG_BASE))
+
+# openconfig-system.yang から openconfig_system_ns.py を生成する
+TARGET = bin/$(YANG_BASE_PY)_ns.py
 
 ######################################################################
 
