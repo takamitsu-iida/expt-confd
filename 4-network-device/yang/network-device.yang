@@ -1,0 +1,1098 @@
+module network-device {
+  namespace "http://example.com/ns/network-device";
+  prefix nd;
+
+  import tailf-common {
+    prefix tailf;
+  }
+
+  import ietf-inet-types {
+    prefix inet;
+  }
+
+  import ietf-yang-types {
+    prefix yang;
+  }
+
+  organization "Example Corp";
+  contact "support@example.com";
+
+  description
+    "ネットワークデバイスの複雑な設定モデル。
+
+     このモデルは以下の機能を提供します:
+     - システム設定（ホスト名、ドメイン、DNS）
+     - インタフェース設定（物理、VLAN、ループバック）
+     - ルーティング設定（スタティック、OSPF、BGP）
+     - ACL（アクセスコントロールリスト）
+     - VLAN設定
+
+     【YANGモデルの基本構造】
+     - container: 設定のグループ化（階層構造を作る）
+     - list: 同じ型の複数要素（例: 複数のインタフェース）
+     - leaf: 単一の値を持つ要素（例: ホスト名）
+     - leaf-list: 同じ型の複数の値（例: DNSサーバのリスト）
+     - choice: 排他的な選択肢（例: スタティックIP or DHCP）
+
+     【条件付き設定】
+     - when: 特定の条件下でのみ設定可能
+     - must: バリデーションルール
+     - mandatory: 必須設定
+
+     【データ型】
+     - typedef: カスタム型定義（再利用可能）
+     - enumeration: 列挙型（選択肢を限定）
+     - range/length: 値の範囲制限
+     - pattern: 正規表現による形式制約";
+
+  revision 2026-01-26 {
+    description "初版リリース。";
+  }
+
+  // =============================================================================
+  // Type Definitions
+  // =============================================================================
+  // 【カスタム型定義】
+  // 複数箇所で使用する型を定義することで、一貫性を保ち、メンテナンス性を向上
+
+  typedef interface-name {
+    type string {
+      // 正規表現でインタフェース名の形式を制限
+      // | は OR を意味し、複数のパターンを許可
+      pattern 'GigabitEthernet[0-9]+(/[0-9]+)*|'
+            + 'FastEthernet[0-9]+(/[0-9]+)*|'
+            + 'Loopback[0-9]+|'
+            + 'Vlan[0-9]+';
+    }
+    description "インタフェース名の形式
+                 例: GigabitEthernet0/0, FastEthernet1/0/1, Loopback0, Vlan100";
+  }
+
+  typedef vlan-id {
+    type uint16 {
+      range "1..4094";  // IEEE 802.1Qで定義されたVLAN ID範囲
+    }
+    description "VLAN ID（1-4094）
+                 注: VLAN 0と4095は予約済み";
+  }
+
+  typedef acl-number {
+    type uint16 {
+      range "1..2699";
+    }
+    description "ACL番号
+                 - 1-99: 標準ACL（送信元IPのみチェック）
+                 - 100-199: 拡張ACL（送信元/宛先IP、ポート等をチェック）
+                 - 1300-1999: 標準ACL拡張範囲
+                 - 2000-2699: 拡張ACL拡張範囲";
+  }
+
+  // =============================================================================
+  // System Configuration
+  // =============================================================================
+  // 【システム全体の設定】
+  // デバイス全体に影響する基本設定を定義
+
+  container system {
+
+    tailf:cli-compact-syntax;
+
+    description "システム全体の設定
+                 このコンテナ配下の設定は、デバイス全体の動作に影響";
+
+    leaf hostname {
+      type string {
+        length "1..63";  // RFC 1123準拠
+        pattern '[a-zA-Z0-9][a-zA-Z0-9-]*';  // 先頭は英数字、以降は英数字とハイフン
+      }
+      default "Router";
+
+      description "デバイスのホスト名
+                   - 1文字以上63文字以内
+                   - 先頭は英数字、以降は英数字とハイフン
+                   - CLIプロンプトやSNMP sysNameに使用";
+    }
+
+    leaf domain-name {
+      type inet:domain-name;
+      description "DNSドメイン名
+                   例: example.com
+                   FQDNの構成に使用（hostname + domain-name）";
+    }
+
+    leaf-list name-server {
+      type inet:ip-address;
+      max-elements 8;
+      description "DNSサーバのリスト
+                   - 最大8台まで設定可能
+                   - 上から順に問い合わせ
+                   - IPv4/IPv6両対応";
+    }
+
+    container banner {
+      description "バナーメッセージ設定
+                   セキュリティ警告や利用規約の表示に使用";
+
+      leaf motd {
+        type string;
+        description "Message of the Day（ログイン時メッセージ）
+                     全ユーザーのログイン時に表示される";
+      }
+
+      leaf login {
+        type string;
+        description "ログインバナー
+                     認証前に表示される
+                     不正アクセス警告等に使用";
+      }
+    }
+
+    container logging {
+      description "ロギング設定
+                   システムログの保存方法と転送先を設定";
+
+      leaf buffered {
+        type uint32 {
+          range "4096..2147483647";
+        }
+        default "4096";
+        description "バッファログのサイズ（バイト）
+                     デバイス内部メモリに保持されるログの最大サイズ";
+      }
+
+      leaf-list host {
+        type inet:host;
+        description "Syslogサーバのリスト
+                     ログを外部サーバに転送
+                     IPアドレスまたはホスト名で指定";
+      }
+
+      leaf facility {
+        type enumeration {
+          enum local0;
+          enum local1;
+          enum local2;
+          enum local3;
+          enum local4;
+          enum local5;
+          enum local6;
+          enum local7;
+        }
+        default "local7";
+        description "Syslog facility
+                     Syslogサーバ側でログの分類に使用";
+      }
+    }
+  }
+
+  // =============================================================================
+  // Interface Configuration
+  // =============================================================================
+  // 【インタフェース設定】
+  // 物理/論理インタフェースの個別設定
+  // listを使用することで、複数のインタフェースを管理
+
+  container interfaces {
+    description "全インタフェースの設定
+                 【設計思想】
+                 - 物理ポート（GigabitEthernet, FastEthernet）
+                 - 論理ポート（Loopback, VLAN）
+                 を統一的に管理";
+
+    list interface {
+      key "name";  // keyはリストの中にあるエントリを識別するための識別子
+      description "個別インタフェースの設定
+                   【設定例】
+                   interfaces {
+                     interface GigabitEthernet0/0 {
+                       description \"Uplink to Core Switch\";
+                       ipv4 { address 192.168.1.1; netmask 255.255.255.0; }
+                     }
+                   }";
+
+      leaf name {  // インタフェース名がkeyとなる
+        type interface-name;
+        description "インタフェース名
+                     このnameを使って各インタフェースを一意に識別";
+      }
+
+      leaf description {
+        type string;
+        description "インタフェースの説明
+                     接続先や用途を記述
+                     例: 'Uplink to Core Switch'";
+      }
+
+      leaf enabled {
+        type boolean;
+        default "true";
+        description "インタフェースの有効/無効
+                     true = no shutdown（有効）
+                     false = shutdown（無効）
+                     デフォルトは有効";
+      }
+
+      leaf mtu {
+        type uint16 {
+          range "64..9216";  // Ethernet標準(1500) + ジャンボフレーム対応
+        }
+        default "1500";
+        description "Maximum Transmission Unit
+                     - 1500: Ethernet標準
+                     - 1500超: ジャンボフレーム
+                     - フラグメンテーション回避のため重要";
+      }
+
+      // 【choice構文】
+      // 排他的な設定オプションを定義
+      // スタティックIP or DHCP のどちらか一方のみ設定可能
+      choice address-config {
+        description "IPアドレス設定方式
+                     【重要】choiceは排他的選択
+                     staticとdhcpは同時に設定不可";
+
+        case static {
+          container ipv4 {
+            description "IPv4スタティック設定
+                         手動でIPアドレスを割り当て";
+
+            leaf address {
+              type inet:ipv4-address;
+              description "IPv4アドレス
+                           例: 192.168.1.1";
+            }
+
+            leaf netmask {
+              type inet:ipv4-address;
+              description "サブネットマスク
+                           例: 255.255.255.0";
+            }
+
+            leaf secondary-address {
+              type inet:ipv4-address;
+              description "セカンダリIPv4アドレス
+                           1つのインタフェースに複数IPを割り当て可能";
+            }
+
+            leaf secondary-netmask {
+              type inet:ipv4-address;
+              description "セカンダリサブネットマスク";
+            }
+          }
+
+          container ipv6 {
+            description "IPv6設定
+                         IPv4と併用可能（デュアルスタック）";
+
+            leaf-list address {
+              type inet:ipv6-prefix;
+              description "IPv6アドレス/プレフィックス長
+                           例: 2001:db8::1/64
+                           複数設定可能";
+            }
+
+            leaf enabled {
+              type boolean;
+              default "false";
+              description "IPv6の有効化
+                           デフォルトは無効";
+            }
+          }
+        }
+
+        case dhcp {
+          leaf dhcp-client {
+            type boolean;
+            description "DHCPクライアントとして動作
+                         動的にIPアドレスを取得";
+          }
+        }
+      }
+
+      // 【when構文】
+      // 条件付きで設定可能な項目
+      // 物理ポートの場合のみスイッチポート設定が可能
+      container switchport {
+        when "starts-with(../name, 'GigabitEthernet') or starts-with(../name, 'FastEthernet')";
+        description "スイッチポート設定（物理ポートのみ）
+                     【重要】whenにより、LoopbackやVLANインタフェースでは設定不可
+
+                     【スイッチポートとは】
+                     L2スイッチング機能（VLAN）を使用する設定";
+
+        leaf mode {
+          type enumeration {
+            enum access;  // アクセスポート: 1つのVLANに所属
+            enum trunk;   // トランクポート: 複数のVLANを伝送
+          }
+          description "スイッチポートモード
+                       - access: エンドデバイス接続用（PC, サーバ等）
+                       - trunk: スイッチ間接続用（複数VLAN伝送）";
+        }
+
+        leaf access-vlan {
+          when "../mode = 'access'";  // accessモード時のみ設定可能
+          type vlan-id;
+          default "1";
+          description "アクセスVLAN ID
+                       このポートが所属するVLAN
+                       デフォルトはVLAN 1";
+        }
+
+        leaf-list trunk-allowed-vlans {
+          when "../mode = 'trunk'";  // trunkモード時のみ設定可能
+          type vlan-id;
+          description "トランクで許可するVLANのリスト
+                       指定したVLANのトラフィックのみ通過可能
+                       セキュリティ向上のため、必要なVLANのみ許可";
+        }
+
+        leaf trunk-native-vlan {
+          when "../mode = 'trunk'";
+          type vlan-id;
+          default "1";
+          description "トランクのネイティブVLAN
+                       タグなしフレームが所属するVLAN
+                       デフォルトはVLAN 1";
+        }
+      }
+
+      leaf vrf {
+        type string;
+        description "VRF (Virtual Routing and Forwarding) インスタンス名
+                     【VRFとは】
+                     1台のルータで複数の独立したルーティングテーブルを持つ機能
+                     マルチテナント環境等で使用";
+      }
+
+      container qos {
+        description "Quality of Service設定
+                     帯域制御やトラフィック優先制御";
+
+        leaf policy-input {
+          type string;
+          description "入力方向のQoSポリシー名
+                       受信トラフィックに適用";
+        }
+
+        leaf policy-output {
+          type string;
+          description "出力方向のQoSポリシー名
+                       送信トラフィックに適用";
+        }
+      }
+    }
+  }
+
+  // =============================================================================
+  // VLAN Configuration
+  // =============================================================================
+  // 【VLAN設定】
+  // L2スイッチング機能の論理的なネットワーク分割
+
+  container vlans {
+    description "VLAN設定
+                 【VLANとは】
+                 Virtual LAN - 物理的な配線に関わらず論理的にネットワークを分割
+                 - ブロードキャストドメインの分離
+                 - セキュリティ向上
+                 - ネットワーク管理の簡素化";
+
+    list vlan {
+      key "id";
+      description "個別VLAN設定";
+
+      leaf id {
+        type vlan-id;
+        description "VLAN ID (1-4094)
+                     VLAN 1はデフォルトVLAN（削除不可）";
+      }
+
+      leaf name {
+        type string {
+          length "1..32";
+        }
+        description "VLAN名
+                     管理しやすい名前を付ける
+                     例: 'Sales-VLAN', 'Engineering-VLAN'";
+      }
+
+      leaf state {
+        type enumeration {
+          enum active;   // VLAN有効
+          enum suspend;  // VLAN一時停止
+        }
+        default "active";
+        description "VLANの状態
+                     suspend: トラフィック転送停止（設定は保持）";
+      }
+    }
+  }
+
+  // =============================================================================
+  // Routing Configuration
+  // =============================================================================
+  // 【ルーティング設定】
+  // L3レイヤでのパケット転送制御
+
+  container routing {
+    description "ルーティング設定
+                 【ルーティングプロトコルの種類】
+                 - スタティック: 手動設定、小規模ネットワーク向け
+                 - OSPF: Link State型、大規模エンタープライズ向け
+                 - BGP: Path Vector型、インターネット接続/大規模DC向け";
+
+    container static {
+      description "スタティックルート設定
+                   【特徴】
+                   - 手動で経路を設定
+                   - 小規模ネットワークや特定経路の制御に適する
+                   - 動的な経路変更には対応できない";
+
+      list route {
+        key "destination";
+        description "個別スタティックルート";
+
+        leaf destination {
+          type inet:ip-prefix;
+          description "宛先ネットワーク（プレフィックス形式）
+                       例: 192.168.10.0/24
+                       0.0.0.0/0 はデフォルトルート";
+        }
+
+        // 【choice構文の応用】
+        // ネクストホップの指定方法を排他的に選択
+        choice next-hop-type {
+          mandatory true;
+          description "ネクストホップの指定方法
+                       【2つの方法】
+                       1. IPアドレス指定: 汎用的
+                       2. インタフェース指定: P2P接続等で使用";
+
+          case next-hop-address {
+            leaf next-hop {
+              type inet:ip-address;
+              description "ネクストホップIPアドレス
+                           パケットの転送先ルータのIP";
+            }
+          }
+
+          case outgoing-interface {
+            leaf interface {
+              type interface-name;
+              description "出力インタフェース
+                           P2P接続の場合に使用
+                           例: Serial0/0";
+            }
+          }
+        }
+
+        leaf distance {
+          type uint8 {
+            range "1..255";
+          }
+          default "1";
+          description "アドミニストレーティブディスタンス (AD)
+                       【経路の信頼度】
+                       値が小さいほど優先度が高い
+                       - スタティック: 1
+                       - OSPF: 110
+                       - BGP: 20(eBGP), 200(iBGP)";
+        }
+
+        leaf permanent {
+          type boolean;
+          default "false";
+          description "永続的ルート
+                       true: インタフェースダウン時も経路を保持
+                       フローティングスタティックルート実装に使用";
+        }
+      }
+    }
+
+    container ospf {
+      description "OSPF (Open Shortest Path First) 設定
+                   【OSPFの特徴】
+                   - Link State型プロトコル
+                   - 高速なコンバージェンス
+                   - エリア分割によるスケーラビリティ
+                   - RFC 2328準拠";
+
+      list process {
+        key "process-id";
+        description "OSPFプロセス
+                     1台のルータで複数のOSPFプロセスを実行可能";
+
+        leaf process-id {
+          type uint16 {
+            range "1..65535";
+          }
+          description "OSPFプロセスID
+                       ローカルで意味を持つID（他ルータとは無関係）";
+        }
+
+        leaf router-id {
+          type yang:dotted-quad;
+          description "OSPFルータID
+                       【重要】OSPF内でルータを一意に識別
+                       通常は最大のLoopback IPアドレスを使用
+                       例: 1.1.1.1";
+        }
+
+        list network {
+          key "prefix";
+          description "OSPFで広報するネットワーク
+                       該当するインタフェースでOSPFを有効化";
+
+          leaf prefix {
+            type inet:ip-prefix;
+            description "ネットワークプレフィックス
+                         例: 192.168.1.0/24";
+          }
+
+          leaf area {
+            type uint32;
+            mandatory true;
+            description "OSPFエリア番号
+                         【エリアの役割】
+                         - Area 0: バックボーンエリア（必須）
+                         - その他: 通常エリア
+                         大規模ネットワークの分割に使用";
+          }
+        }
+
+        container default-information {
+          description "デフォルトルートの配布
+                       インターネット接続ルータ等で使用";
+
+          leaf originate {
+            type boolean;
+            default "false";
+            description "デフォルトルートを生成
+                         true: 0.0.0.0/0をOSPFで広報";
+          }
+
+          leaf always {
+            type boolean;
+            default "false";
+            description "常にデフォルトルートを広報
+                         true: 自身がデフォルトルートを持たなくても広報";
+          }
+
+          leaf metric {
+            type uint32;
+            description "デフォルトルートのメトリック
+                         コスト値（小さいほど優先）";
+          }
+        }
+      }
+    }
+
+    container bgp {
+      description "BGP (Border Gateway Protocol) 設定
+                   【BGPの特徴】
+                   - Path Vector型プロトコル
+                   - インターネットルーティングの標準
+                   - ポリシーベースルーティング
+                   - AS間の経路交換
+                   - RFC 4271準拠";
+
+      leaf as-number {
+        type uint32;
+        description "BGP AS (Autonomous System) 番号
+                     【AS番号】
+                     - 1-64511: パブリックAS
+                     - 64512-65535: プライベートAS
+                     - 65536-4294967295: 4バイトAS";
+      }
+
+      leaf router-id {
+        type yang:dotted-quad;
+        description "BGPルータID
+                     BGP内でルータを一意に識別
+                     通常はLoopback IPアドレス";
+      }
+
+      list neighbor {
+        key "address";
+        description "BGPネイバー設定
+                     【ネイバーとの関係】
+                     - iBGP: 同一AS内のピア
+                     - eBGP: 異なるAS間のピア";
+
+        leaf address {
+          type inet:ip-address;
+          description "ネイバーのIPアドレス
+                       TCP 179番ポートで接続";
+        }
+
+        leaf remote-as {
+          type uint32;
+          mandatory true;
+          description "リモートAS番号
+                       - 自AS番号と同じ → iBGP
+                       - 自AS番号と異なる → eBGP";
+        }
+
+        leaf description {
+          type string;
+          description "ネイバーの説明
+                       管理用の説明文
+                       例: 'ISP1 Primary Link'";
+        }
+
+        leaf update-source {
+          type interface-name;
+          description "BGPアップデートの送信元インタフェース
+                       通常はLoopbackを指定（安定性向上）";
+        }
+
+        leaf ebgp-multihop {
+          type uint8 {
+            range "1..255";
+          }
+          description "eBGPマルチホップのTTL値
+                       デフォルトはTTL=1（直接接続のみ）
+                       複数ホップ先のeBGPピアとの接続に必要";
+        }
+
+        container timers {
+          description "BGPタイマー設定
+                       ネイバーの生存確認頻度";
+
+          leaf keepalive {
+            type uint16;
+            default "60";
+            description "Keepalive間隔（秒）
+                         ネイバーへの生存確認送信頻度";
+          }
+
+          leaf holdtime {
+            type uint16;
+            default "180";
+            description "Hold time（秒）
+                         この時間Keepaliveを受信しないとダウン判定
+                         通常はkeepalive × 3";
+          }
+        }
+      }
+
+      list network {
+        key "prefix";
+        description "BGPで広報するネットワーク
+                     【重要】ルーティングテーブルに存在する経路のみ広報可能";
+
+        leaf prefix {
+          type inet:ip-prefix;
+          description "ネットワークプレフィックス
+                       例: 203.0.113.0/24";
+        }
+
+        leaf route-map {
+          type string;
+          description "適用するルートマップ名
+                       経路のフィルタリングや属性変更に使用";
+        }
+      }
+    }
+  }
+
+  // =============================================================================
+  // Access Control Lists
+  // =============================================================================
+  // 【ACL設定】
+  // パケットフィルタリングによるセキュリティ制御
+
+  container access-lists {
+    description "アクセスコントロールリスト設定
+                 【ACLの目的】
+                 - トラフィックのフィルタリング
+                 - セキュリティポリシーの実装
+                 - QoS/NATのトラフィック分類";
+
+    list standard {
+      key "number";
+      description "標準ACL（1-99, 1300-1999）
+                   【標準ACLの特徴】
+                   - 送信元IPアドレスのみでフィルタリング
+                   - シンプルだが柔軟性は低い
+                   - 宛先に近い場所に配置";
+
+      leaf number {
+        type acl-number {
+          range "1..99 | 1300..1999";
+        }
+        description "標準ACL番号
+                     1-99: 基本範囲
+                     1300-1999: 拡張範囲";
+      }
+
+      leaf name {
+        type string;
+        description "ACL名（オプション）
+                     名前付きACLで管理性向上";
+      }
+
+      list entry {
+        key "sequence";
+        description "ACLエントリ
+                     【処理順序】
+                     上から順に評価、最初にマッチしたルールを適用";
+
+        leaf sequence {
+          type uint32;
+          description "シーケンス番号
+                       エントリの順序を制御
+                       通常10刻みで設定（後から挿入可能に）";
+        }
+
+        leaf action {
+          type enumeration {
+            enum permit;  // 許可
+            enum deny;    // 拒否
+          }
+          mandatory true;
+          description "許可/拒否
+                       【暗黙のdeny】
+                       ACL末尾に暗黙の 'deny any' が存在";
+        }
+
+        // 【choice構文でアドレス指定方法を選択】
+        choice source {
+          mandatory true;
+          description "送信元アドレス指定";
+
+          case any {
+            leaf any {
+              type empty;
+              description "全ての送信元
+                           0.0.0.0/0と同義";
+            }
+          }
+
+          case host {
+            leaf host {
+              type inet:ipv4-address;
+              description "特定のホスト
+                           単一IPアドレス
+                           例: 192.168.1.100";
+            }
+          }
+
+          case network {
+            container network {
+              leaf address {
+                type inet:ipv4-address;
+                description "ネットワークアドレス
+                             例: 192.168.1.0";
+              }
+              leaf wildcard {
+                type inet:ipv4-address;
+                description "ワイルドカードマスク
+                             【重要】サブネットマスクの逆
+                             0 = マッチング必須
+                             1 = don't care
+                             例: 0.0.0.255 → /24ネットワーク";
+              }
+            }
+          }
+        }
+
+        leaf log {
+          type boolean;
+          default "false";
+          description "マッチ時にログ出力
+                       トラブルシューティングやセキュリティ監査に使用
+                       注意: 大量ログによるCPU負荷";
+        }
+      }
+    }
+
+    list extended {
+      key "number";
+      description "拡張ACL（100-199, 2000-2699）
+                   【拡張ACLの特徴】
+                   - 送信元/宛先IP、プロトコル、ポート番号でフィルタリング
+                   - 柔軟な制御が可能
+                   - 送信元に近い場所に配置";
+
+      leaf number {
+        type acl-number {
+          range "100..199 | 2000..2699";
+        }
+        description "拡張ACL番号
+                     100-199: 基本範囲
+                     2000-2699: 拡張範囲";
+      }
+
+      leaf name {
+        type string;
+        description "ACL名（オプション）";
+      }
+
+      list entry {
+        key "sequence";
+        description "ACLエントリ";
+
+        leaf sequence {
+          type uint32;
+          description "シーケンス番号";
+        }
+
+        leaf action {
+          type enumeration {
+            enum permit;
+            enum deny;
+          }
+          mandatory true;
+          description "許可/拒否";
+        }
+
+        leaf protocol {
+          type union {
+            type uint8;  // プロトコル番号（0-255）
+            type enumeration {
+              enum ip;    // 全IPトラフィック
+              enum tcp;   // TCP (6)
+              enum udp;   // UDP (17)
+              enum icmp;  // ICMP (1)
+              enum esp;   // IPsec ESP (50)
+              enum ah;    // IPsec AH (51)
+              enum gre;   // GRE (47)
+            }
+          }
+          mandatory true;
+          description "プロトコル
+                       数値またはキーワードで指定
+                       例: tcp, udp, icmp, 6, 17";
+        }
+
+        // 送信元設定
+        choice source {
+          mandatory true;
+          case any {
+            leaf source-any {
+              type empty;
+            }
+          }
+          case host {
+            leaf source-host {
+              type inet:ipv4-address;
+            }
+          }
+          case network {
+            container source-network {
+              leaf address {
+                type inet:ipv4-address;
+              }
+              leaf wildcard {
+                type inet:ipv4-address;
+              }
+            }
+          }
+        }
+
+        // 【when構文の使用例】
+        // TCP/UDPの場合のみポート設定が可能
+        container source-port {
+          when "../protocol = 'tcp' or ../protocol = 'udp' or ../protocol = '6' or ../protocol = '17'";
+          description "送信元ポート設定（TCP/UDPのみ）";
+
+          choice port-spec {
+            case eq {
+              leaf eq {
+                type uint16;
+                description "指定ポートと等しい
+                             例: eq 80 (HTTP)";
+              }
+            }
+            case range {
+              container range {
+                leaf start {
+                  type uint16;
+                  description "ポート範囲の開始
+                               例: range 1024 65535";
+                }
+                leaf end {
+                  type uint16;
+                  description "ポート範囲の終了";
+                }
+              }
+            }
+          }
+        }
+
+        // 宛先設定（送信元と同様の構造）
+        choice destination {
+          mandatory true;
+          case any {
+            leaf destination-any {
+              type empty;
+            }
+          }
+          case host {
+            leaf destination-host {
+              type inet:ipv4-address;
+            }
+          }
+          case network {
+            container destination-network {
+              leaf address {
+                type inet:ipv4-address;
+              }
+              leaf wildcard {
+                type inet:ipv4-address;
+              }
+            }
+          }
+        }
+
+        container destination-port {
+          when "../protocol = 'tcp' or ../protocol = 'udp' or ../protocol = '6' or ../protocol = '17'";
+          description "宛先ポート設定（TCP/UDPのみ）";
+
+          choice port-spec {
+            case eq {
+              leaf eq {
+                type uint16;
+                description "指定ポートと等しい
+                             例: eq 443 (HTTPS)";
+              }
+            }
+            case range {
+              container range {
+                leaf start {
+                  type uint16;
+                }
+                leaf end {
+                  type uint16;
+                }
+              }
+            }
+          }
+        }
+
+        leaf established {
+          when "../protocol = 'tcp' or ../protocol = '6'";
+          type boolean;
+          default "false";
+          description "確立済みTCP接続のみマッチ
+                       【用途】
+                       戻りトラフィックのみ許可
+                       ACKまたはRSTフラグがセットされたパケット";
+        }
+
+        leaf log {
+          type boolean;
+          default "false";
+          description "マッチ時にログ出力";
+        }
+      }
+    }
+  }
+
+  // =============================================================================
+  // Operational State
+  // =============================================================================
+  // 【運用状態データ】
+  // config false により読み取り専用（設定不可）
+
+  container device-state {
+    config false;  // 読み取り専用マーク
+    description "デバイスの運用状態情報
+                 【オペレーショナルデータとは】
+                 - 設定データではなく、動的に生成される状態情報
+                 - 統計情報、ステータス、カウンタ等
+                 - Python等のデータプロバイダが値を提供";
+
+    tailf:callpoint device_state_cp;  // ConfD用：データプロバイダの登録名
+
+    leaf uptime {
+      type string;
+      description "デバイス稼働時間
+                   例: '5 days, 3 hours, 25 minutes'";
+    }
+
+    leaf cpu-utilization {
+      type uint8;
+      units "percent";
+      description "CPU使用率（0-100%）
+                   監視システムでアラート設定に使用";
+    }
+
+    leaf memory-utilization {
+      type uint8;
+      units "percent";
+      description "メモリ使用率（0-100%）";
+    }
+
+    list interface-status {
+      key "name";
+      description "インタフェースステータス
+                   各インタフェースのリアルタイム状態";
+
+      leaf name {
+        type interface-name;
+        description "インタフェース名";
+      }
+
+      leaf admin-status {
+        type enumeration {
+          enum up;    // 管理的に有効
+          enum down;  // 管理的に無効（shutdown）
+        }
+        description "管理ステータス
+                     設定による有効/無効状態";
+      }
+
+      leaf oper-status {
+        type enumeration {
+          enum up;    // 物理的にリンクアップ
+          enum down;  // 物理的にリンクダウン
+        }
+        description "運用ステータス
+                     実際のリンク状態";
+      }
+
+      leaf speed {
+        type string;
+        description "インタフェース速度
+                     例: '1000Mbps', '10Gbps'";
+      }
+
+      leaf duplex {
+        type enumeration {
+          enum full;  // 全二重
+          enum half;  // 半二重
+          enum auto;  // 自動ネゴシエーション
+        }
+        description "デュプレックスモード";
+      }
+
+      // 【統計情報】
+      // yang:counter64 は増加のみのカウンタ型
+      leaf in-octets {
+        type yang:counter64;
+        description "受信バイト数
+                     デバイス起動またはカウンタリセットからの累積";
+      }
+
+      leaf out-octets {
+        type yang:counter64;
+        description "送信バイト数";
+      }
+
+      leaf in-errors {
+        type yang:counter32;
+        description "受信エラー数
+                     CRCエラー、アライメントエラー等";
+      }
+
+      leaf out-errors {
+        type yang:counter32;
+        description "送信エラー数
+                     コリジョン、Late collision等";
+      }
+    }
+  }
+}

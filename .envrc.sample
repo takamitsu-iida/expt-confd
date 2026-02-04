@@ -1,0 +1,25 @@
+source .venv/bin/activate
+unset PS1
+
+# デフォルトではプロンプトに(.venv)が表示される
+# この表示を無効化する場合は1を設定
+# export VIRTUAL_ENV_DISABLE_PROMPT=1
+
+# Add local bin directory to PATH
+export PATH="$(pwd)/bin:$PATH"
+
+# Set the default browser to wslview
+export BROWSER=/usr/bin/wslview
+
+# PYTHONPATHにconfdという文字列が含まれていない場合
+if [[ ":$PYTHONPATH:" != *":confd:"* ]]; then
+  # /usr/lib/confdディレクトリが存在するなら
+  if [ -d /usr/lib/confd ]; then
+    export PYTHONPATH="/usr/lib/confd/src/confd/pyapi:$PYTHONPATH"
+  fi
+
+  # $HOME/confdディレクトリが存在するなら
+  if [ -d "$HOME/confd" ]; then
+    export PYTHONPATH="$HOME/confd/src/confd/pyapi:$PYTHONPATH"
+  fi
+fi
