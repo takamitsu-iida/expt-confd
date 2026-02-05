@@ -101,3 +101,8 @@ cli:
 
 cli-c:
 	$(CONFD_DIR)/bin/confd_cli -C --user=admin --groups=admin --interactive || echo Exit
+
+# XML形式のコンフィグファイルの検証
+XML_CONFIG_FILE ?= config.xml
+validate-xml:
+	yanglint -p ./yang -p "$(CONFD_DIR)/src/confd/yang" -t config example.yang "$(XML_CONFIG_FILE)"

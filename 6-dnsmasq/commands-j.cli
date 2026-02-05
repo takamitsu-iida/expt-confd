@@ -1,0 +1,19 @@
+context dhcp {
+  description "DHCP related operational commands";
+
+  show dhcp leases {
+    description "Show current DHCP leases (dnsmasq)";
+    info "Show current DHCP leases";
+
+    # パス /dnsmasq/dhcp/leases/lease をテーブル形式で表示
+    list dnsmasq-dhcp:dnsmasq dhcp leases lease {
+      key ip-address;
+      columns {
+        ip-address;
+        mac;
+        hostname;
+        expiry;
+      }
+    }
+  }
+}

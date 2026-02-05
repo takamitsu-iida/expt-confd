@@ -11,10 +11,14 @@ usage:
 ######################################################################
 
 # ベースとなるYANGファイル名（拡張子なし）
-YANG_BASE = network-device
+YANG_BASE = dnsmasq-dhcp
 
-# example.yangからexample.fxsを生成し、さらにexample_ns.pyを生成する
-TARGET = bin/$(YANG_BASE)_ns.py
+# dnsmasq-dhcp.yangからdnsmasq-dhcp.fxsを生成し、さらにdnsmasq_dhcp_ns.pyを生成する
+TARGET = bin/$(YANG_BASE:_-=%)_ns.py
+
+# Pythonスクリプトのパス
+CONFIG_SYNC = bin/dnsmasq_config_sync.py
+LEASE_PROVIDER = bin/dhcp_lease_provider.py
 
 ######################################################################
 
@@ -36,9 +40,12 @@ YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 # confd実行時の引数
 CONFD_FLAGS = --addloadpath $(CONFD_DIR)/etc/confd
 
-# YANGファイルのリスト（必要に応じて調整）
+# YANGファイルのリスト
 YANG_FILES = $(wildcard $(YANG_DIR)/*.yang)
 FXS_FILES = $(patsubst $(YANG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(YANG_FILES))
+
+# CLI 定義ファイル
+CLI_J = commands-j.cli
 
 ######################################################################
 
@@ -69,6 +76,9 @@ $(TARGET): $(LOADPATH_DIR)/$(YANG_BASE).fxs
 # 初期化（ディレクトリ作成、設定ファイルコピー）
 init:
 	@../bin/init.sh || true
+	@if [ -f $(CLI_J) ]; then \
+		confdc -c $(CLI_J); \
+	fi
 
 # お掃除
 clean:
@@ -76,15 +86,22 @@ clean:
 	@rm -f log/* || true
 
 # 起動
-start:  stop start_confd
+start:  stop start_confd start_agents
 
 # ConfD 起動
 start_confd: stop all
 	confd -c confd.conf $(CONFD_FLAGS)
 
+# Pythonエージェント起動
+start_agents:
+	python $(CONFIG_SYNC) --start
+	python $(LEASE_PROVIDER) --start
+
 # ConfD 停止
 stop:
 	confd --stop || true
+	python $(CONFIG_SYNC) --stop || true
+	python $(LEASE_PROVIDER) --stop || true
 
 # ConfD CLI 起動
 cli:
@@ -92,8 +109,3 @@ cli:
 
 cli-c:
 	$(CONFD_DIR)/bin/confd_cli -C --user=admin --groups=admin --interactive || echo Exit
-
-# XML形式のコンフィグファイルの検証
-XML_CONFIG_FILE ?= config.xml
-validate-xml:
-	yanglint -p ./yang -p "$(CONFD_DIR)/src/confd/yang" -t config example.yang "$(XML_CONFIG_FILE)"

@@ -63,6 +63,7 @@ CML上のUbuntuにインストールするのであれば、
 - gcc  # for ConfD build
 - python3-venv
 - direnv
+- libyang-tools  # for yanglint
 
 <br><br>
 

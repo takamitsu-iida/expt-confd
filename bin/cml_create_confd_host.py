@@ -92,6 +92,7 @@ packages:
   - python3-venv
   - direnv
   - gcc  # for ConfD build
+  - libyang-tools  # for yanglint
 
 write_files:
   #

@@ -1,0 +1,124 @@
+module dnsmasq-dhcp {
+  namespace "http://example.com/dnsmasq-dhcp";
+  prefix dd;
+
+  import ietf-inet-types {
+    prefix inet;
+  }
+
+  import tailf-common {
+    prefix tailf;
+  }
+
+  description
+    "Simple YANG model to manage dnsmasq DHCP configuration and show leases via ConfD.";
+
+  revision "2026-02-05" {
+    description "Initial revision";
+  }
+
+  container dnsmasq {
+    description "dnsmasq-related configuration and state";
+
+    container dhcp {
+      description "DHCP server configuration for dnsmasq";
+
+      leaf enabled {
+        type boolean;
+        default "false";
+        description "Enable/disable dnsmasq DHCP server";
+      }
+
+      leaf interface {
+        type string;
+        description "Interface on which DHCP will listen (e.g. eth0)";
+      }
+
+      container address-pool {
+        presence "Enable dynamic address pool";
+        description "Dynamic address pool configuration mapped to dnsmasq 'dhcp-range'";
+
+        leaf start-address {
+          type inet:ipv4-address;
+          description "Start of DHCP address pool";
+        }
+
+        leaf end-address {
+          type inet:ipv4-address;
+          description "End of DHCP address pool";
+        }
+
+        leaf netmask {
+          type inet:ipv4-address;
+          description "Netmask used by the pool";
+        }
+
+        leaf gateway {
+          type inet:ipv4-address;
+          description "Default gateway offered to clients";
+        }
+
+        leaf lease-time {
+          type string;
+          description "Lease time string as accepted by dnsmasq (e.g. 12h, 1d)";
+        }
+      }
+
+      list static-lease {
+        key "mac";
+        description "Static DHCP leases mapped to dnsmasq 'dhcp-host'";
+
+        leaf mac {
+          type string;
+          description "Client MAC address";
+        }
+
+        leaf ip-address {
+          type inet:ipv4-address;
+          description "Fixed IP address assigned to this MAC";
+        }
+
+        leaf hostname {
+          type string;
+          description "Hostname to provide via DHCP";
+        }
+      }
+
+      container leases {
+        config false;
+        tailf:callpoint dhcp_lease_cp;
+        tailf:info "Show DHCP leases";
+        description
+          "Operational data: current DHCP leases from dnsmasq.leases
+
+           CLI 例:
+             show dhcp leases
+
+           このコンテナ配下の list lease は Python データプロバイダ
+           (callpoint dhcp_lease_cp) によって動的に提供されます。";
+
+        list lease {
+          key "ip-address";
+          description "Single active lease entry";
+
+          leaf ip-address {
+            type inet:ipv4-address;
+            description "Leased IPv4 address";
+          }
+          leaf mac {
+            type string;
+            description "Client MAC address";
+          }
+          leaf hostname {
+            type string;
+            description "Client hostname (if known)";
+          }
+          leaf expiry {
+            type string;
+            description "Expiry time as human readable string";
+          }
+        }
+      }
+    }
+  }
+}
