@@ -19,7 +19,7 @@ tmp/
 loadpath/
 confd-cdb/
 confd-state/
-ssh-keydir/
+ssh-keydir
 
 # サブディレクトリの中のconfd.confを無視する（自動生成のため）
 **/confd.conf
