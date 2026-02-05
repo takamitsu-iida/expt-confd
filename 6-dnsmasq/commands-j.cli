@@ -1,19 +1,32 @@
-context dhcp {
-  description "DHCP related operational commands";
+<clispec xmlns="http://tail-f.com/ns/clispec/1.0" style="j">
+  <!--
+    Juniper-style CLI specification for this example.
 
-  show dhcp leases {
-    description "Show current DHCP leases (dnsmasq)";
-    info "Show current DHCP leases";
+    ここでは追加コマンドを定義せず、YANG から自動生成される
+    show/config コマンド群をそのまま利用します。
 
-    # パス /dnsmasq/dhcp/leases/lease をテーブル形式で表示
-    list dnsmasq-dhcp:dnsmasq dhcp leases lease {
-      key ip-address;
-      columns {
-        ip-address;
-        mac;
-        hostname;
-        expiry;
-      }
-    }
-  }
-}
+    dnsmasq DHCP リースは YANG パス
+      /dnsmasq/dhcp/leases/lease
+    を通じて参照できるため、CLI では例えば次のような使い方になります:
+
+      > show configuration dnsmasq dhcp
+      > show dnsmasq dhcp leases
+
+    より細かい文法 ("show dhcp leases" など) にカスタマイズしたい場合は、
+    ConfD clispec ドキュメントに従って <cmd> 要素を追加してください。
+  -->
+
+  <!--
+    NOTE: clispec schema 上、単純に <cmd> 直下に <data> で
+    YANG パスをマッピングすることはできません（confdc でエラー）。
+
+    そのため、このファイルでは追加コマンドを定義せず、YANG から
+    自動生成される次のようなコマンドでリースを参照してください。
+
+      show dnsmasq dhcp leases
+
+    （/dnsmasq/dhcp/leases/lease の list がテーブル表示されます）
+  -->
+  <operationalMode/>
+  <configureMode/>
+</clispec>

@@ -21,6 +21,11 @@ confd-cdb/
 confd-state/
 ssh-keydir
 
+# confdのコンパイル生成物
+*.fxs
+*.ccl
+
+
 # サブディレクトリの中のconfd.confを無視する（自動生成のため）
 **/confd.conf
 

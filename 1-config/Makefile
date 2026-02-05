@@ -42,6 +42,9 @@ CONFD_FLAGS = --addloadpath $(CONFD_DIR)/etc/confd
 YANG_FILES = $(wildcard $(YANG_DIR)/*.yang)
 FXS_FILES = $(patsubst $(YANG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(YANG_FILES))
 
+# CLI 定義ファイル
+CLI_J = commands-j.cli
+
 ######################################################################
 
 # FXSファイルの作成ルール
@@ -71,6 +74,9 @@ $(TARGET): $(LOADPATH_DIR)/$(YANG_BASE).fxs
 # 初期化（ディレクトリ作成、設定ファイルコピー）
 init:
 	@../bin/init.sh || true
+	@if [ -f $(CLI_J) ]; then \
+		confdc -c $(CLI_J); \
+	fi
 
 # お掃除
 clean:
@@ -96,7 +102,7 @@ stop:
 
 # ConfD CLI 起動
 cli:
-	$(CONFD_DIR)/bin/confd_cli --user=admin --groups=admin --interactive || echo Exit
+	$(CONFD_DIR)/bin/confd_cli -J --user=admin --groups=admin --interactive || echo Exit
 
 cli-c:
 	$(CONFD_DIR)/bin/confd_cli -C --user=admin --groups=admin --interactive || echo Exit
