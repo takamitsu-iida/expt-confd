@@ -42,11 +42,4 @@ else
   echo "Warning: No XML files found in $CONFD_DIR/var/confd/cdb" >&2
 fi
 
-# # cliフォルダそのものをコピー
-# if [ -d ../cli ]; then
-#   cp -r ../cli ./cli
-# else
-#   echo "Warning: ../cli directory not found, skipping copy" >&2
-# fi
-
 echo "Initialization completed successfully"
