@@ -1,0 +1,29 @@
+module example {
+  namespace "http://example.com/ns/8-maapi";
+  prefix ex;
+
+  description
+    "Very small example module for demonstrating MAAPI from Python.
+
+     The idea is to keep the data model tiny so that the focus is on
+     the Python-side MAAPI calls (connect, start_user_session,
+     start_trans, get_elem, set_elem, apply_trans).";
+
+  container demo {
+    description
+      "Demo data that we read/write from Python using MAAPI.";
+
+    leaf message {
+      type string;
+      description
+        "Free text message. The Python script will create/update
+         this leaf using MAAPI.";
+    }
+
+    leaf last-updated {
+      type string;
+      description
+        "Timestamp of the last MAAPI update in RFC3339-like format.";
+    }
+  }
+}
