@@ -4,9 +4,9 @@
 
 tail-f社は2014年にCisco社に買収されました。
 
-tail-fのNCS(Network Control System)はCisco NSO(Network Services Orchestrator)として継続しています。
+tail-fの製品NCS(Network Control System)は現在、Cisco NSO(Network Services Orchestrator)として継続しています。
 
-tail-fのConfD(Pro版)は既にEnd of Lifeとなっていますが、機能を制限したベーシック版は2026年1月現在もDevNetのサイトで公開されています（8.0.x系が最後のリリースと言われています）。
+tail-fの製品ConfD(Pro版)は既にEnd of Lifeとなっていますが、機能を制限したベーシック版は2026年1月現在もDevNetのサイトで公開されています（8.0.x系が最後のリリースと言われています）。
 
 ベーシック版ConfDが入手可能なうちに、実際に動かしてみます。
 

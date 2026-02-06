@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ -z "${USER}" ]
+then
+    confd_cli -u "$(whoami)" -c "$HOME" -R $1
+else
+    confd_cli -u "$USER" -c "$HOME" -R $1
+fi
