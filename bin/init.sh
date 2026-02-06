@@ -35,11 +35,18 @@ if [ ! -d "$CONFD_DIR/etc/confd/ssh" ]; then
 fi
 ln -s "$CONFD_DIR/etc/confd/ssh" ssh-keydir
 
-# CDBファイルのコピー
+# CDBファイルのコピー(aaa_init.xml)
 if [ -d "$CONFD_DIR/var/confd/cdb" ] && [ -n "$(ls -A "$CONFD_DIR/var/confd/cdb"/*.xml 2>/dev/null)" ]; then
   cp "$CONFD_DIR/var/confd/cdb"/*.xml ./confd-cdb/
 else
   echo "Warning: No XML files found in $CONFD_DIR/var/confd/cdb" >&2
 fi
+
+# # cliフォルダそのものをコピー
+# if [ -d ../cli ]; then
+#   cp -r ../cli ./cli
+# else
+#   echo "Warning: ../cli directory not found, skipping copy" >&2
+# fi
 
 echo "Initialization completed successfully"

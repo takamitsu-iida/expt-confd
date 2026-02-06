@@ -1,3 +1,5 @@
+.PHONY: usage init clean start start_confd start_subscriber stop cli cli-c validate-xml
+
 usage:
 	@echo "make init    ディレクトリと設定ファイルを準備します"
 	@echo "make all     実行できるようにビルドします"
@@ -43,7 +45,10 @@ YANG_FILES = $(wildcard $(YANG_DIR)/*.yang)
 FXS_FILES = $(patsubst $(YANG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(YANG_FILES))
 
 # CLI 定義ファイル
-CLI_J = commands-j.cli
+CLI_DIR = $(PWD)/cli
+CLI_J = $(CLI_DIR)/commands-j.cli
+CLI_C = $(CLI_DIR)/commands-c.cli
+CLI_SPECS = $(LOADPATH_DIR)/commands-j.ccl $(LOADPATH_DIR)/commands-c.ccl
 
 ######################################################################
 
@@ -51,6 +56,11 @@ CLI_J = commands-j.cli
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
+
+# CLIスペック(.ccl)の作成ルール
+$(LOADPATH_DIR)/%.ccl: $(CLI_DIR)/%.cli
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $<
 
 # Python名前空間ファイルを生成するルール
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
@@ -60,8 +70,9 @@ $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
 
 ######################################################################
 
+
 # デフォルトターゲット
-all: $(TARGET)
+all: $(TARGET) $(CLI_SPECS)
 	@echo "Build complete"
 
 # TARGETを生成する明示的なルール
@@ -74,13 +85,10 @@ $(TARGET): $(LOADPATH_DIR)/$(YANG_BASE).fxs
 # 初期化（ディレクトリ作成、設定ファイルコピー）
 init:
 	@../bin/init.sh || true
-	@if [ -f $(CLI_J) ]; then \
-		confdc -c $(CLI_J); \
-	fi
 
 # お掃除
 clean:
-	@rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py || true
+	@rm -f $(LOADPATH_DIR)/*.fxs $(LOADPATH_DIR)/*.ccl $(BIN_DIR)/*_ns.py || true
 	@rm -f log/* || true
 
 # 起動

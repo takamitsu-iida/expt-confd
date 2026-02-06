@@ -1,3 +1,5 @@
+.PHONY: usage init clean start start_confd start_agents stop cli cli-c
+
 usage:
 	@echo "make init          ディレクトリと設定ファイルを準備します"
 	@echo "make all           実行できるようにビルドします"
@@ -34,6 +36,12 @@ LOADPATH_DIR = $(PWD)/loadpath
 # binディレクトリ
 BIN_DIR = $(PWD)/bin
 
+# CLI 定義ファイル
+CLI_DIR = $(PWD)/cli
+CLI_J_GENERIC = $(CLI_DIR)/commands-j.cli
+CLI_C_GENERIC = $(CLI_DIR)/commands-c.cli
+CLI_SPECS = $(LOADPATH_DIR)/commands-j.ccl $(LOADPATH_DIR)/commands-c.ccl
+
 # FXSファイルを生成するときの追加の検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 
@@ -44,7 +52,7 @@ CONFD_FLAGS = --addloadpath $(CONFD_DIR)/etc/confd
 YANG_FILES = $(wildcard $(YANG_DIR)/*.yang)
 FXS_FILES = $(patsubst $(YANG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(YANG_FILES))
 
-# CLI 定義ファイル
+# DNSMASQ 用 CLI 定義ファイル
 CLI_J = commands-j.cli
 
 ######################################################################
@@ -53,6 +61,11 @@ CLI_J = commands-j.cli
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
+
+# CLIスペック(.ccl)の作成ルール（汎用 CLI）
+$(LOADPATH_DIR)/%.ccl: $(CLI_DIR)/%.cli
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $<
 
 # Python名前空間ファイルを生成するルール
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
@@ -63,7 +76,7 @@ $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
 ######################################################################
 
 # デフォルトターゲット
-all: $(TARGET)
+all: $(TARGET) $(CLI_SPECS)
 	@echo "Build complete"
 
 # TARGETを生成する明示的なルール
@@ -77,12 +90,12 @@ $(TARGET): $(LOADPATH_DIR)/$(YANG_BASE).fxs
 init:
 	@../bin/init.sh || true
 	@if [ -f $(CLI_J) ]; then \
-		confdc -c $(CLI_J); \
+		confdc -c -o $(LOADPATH_DIR)/dnsmasq-commands-j.ccl $(CLI_J); \
 	fi
 
 # お掃除
 clean:
-	@rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py || true
+	@rm -f $(LOADPATH_DIR)/*.fxs $(LOADPATH_DIR)/*.ccl $(BIN_DIR)/*_ns.py || true
 	@rm -f log/* || true
 
 # 起動

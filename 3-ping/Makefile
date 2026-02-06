@@ -1,3 +1,5 @@
+.PHONY: usage init clean start start_confd start_action_handler stop cli cli-c validate-xml
+
 usage:
 	@echo "make init          ディレクトリと設定ファイルを準備します"
 	@echo "make all           実行できるようにビルドします"
@@ -33,6 +35,9 @@ LOADPATH_DIR = $(PWD)/loadpath
 # binディレクトリ
 BIN_DIR = $(PWD)/bin
 
+# CLI 定義ファイル（必要に応じて使用）
+CLI_DIR = $(PWD)/cli
+
 # FXSファイルを生成するときの追加の検索パス
 YANGPATH = --yangpath $(CONFD_DIR)/src/confd/yang --yangpath $(YANG_DIR)
 
@@ -49,6 +54,11 @@ FXS_FILES = $(patsubst $(YANG_DIR)/%.yang,$(LOADPATH_DIR)/%.fxs,$(YANG_FILES))
 $(LOADPATH_DIR)/%.fxs: $(YANG_DIR)/%.yang
 	@mkdir -p $(LOADPATH_DIR)
 	confdc -c -o $@ $< $(YANGPATH)
+
+# CLIスペック(.ccl)の作成ルール（cli/*.cli が存在する場合に利用）
+$(LOADPATH_DIR)/%.ccl: $(CLI_DIR)/%.cli
+	@mkdir -p $(LOADPATH_DIR)
+	confdc -c -o $@ $<
 
 # Python名前空間ファイルを生成するルール
 $(BIN_DIR)/%_ns.py: $(LOADPATH_DIR)/%.fxs
@@ -75,7 +85,7 @@ init:
 
 # お掃除
 clean:
-	@rm -f $(LOADPATH_DIR)/*.fxs $(BIN_DIR)/*_ns.py || true
+	@rm -f $(LOADPATH_DIR)/*.fxs $(LOADPATH_DIR)/*.ccl $(BIN_DIR)/*_ns.py || true
 	@rm -f log/* || true
 
 # 起動
