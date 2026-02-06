@@ -44,6 +44,7 @@ module example {
   // CDBに保存され、デバイス再起動後も保持される
 
   container server-config {
+    tailf:info "Server configuration parameters";
     description
       "サーバー設定パラメータ
 
@@ -143,6 +144,8 @@ module example {
                   // - ユーザーは読み取りのみ可能
                   // - CDBには保存されない
                   // - データプロバイダが値を動的に提供
+
+    tailf:info "Server operational status";
 
     description
       "サーバー運用状態情報

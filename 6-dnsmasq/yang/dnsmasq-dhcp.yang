@@ -18,9 +18,12 @@ module dnsmasq-dhcp {
   }
 
   container dnsmasq {
-    description "dnsmasq-related configuration and state";
+    tailf:info "Dnsmasq DHCP configuration";  // configモードで?を押したときに表示される説明文
+    description
+      "Dnsmasq DHCP の設定および状態情報。";
 
     container dhcp {
+      tailf:info "DHCP server configuration";
       description "DHCP server configuration for dnsmasq";
 
       leaf enabled {
