@@ -28,14 +28,11 @@ Cisco社のSoftware Downloadのページからダウンロードできます。
 
 <br><br>
 
-リリースノートとか、そういうのは見当たりません。
+リリースノートとか、そういうのは見当たりません（ドキュメント類はインストール先に格納されます）。
 
 x86_64の方のzipファイルをダウンロードします。
 
 今回ダウンロードしたのは　`confd-basic-8.0.20.linux.x86_64.signed.zip`　です。
-
-CML上のUbuntuにインストールするのであれば、
-これをHyper-Vホストになっている母艦の `C:\inetpub\wwwroot` においておきます。
 
 <br><br>
 
@@ -159,26 +156,6 @@ cisco@confd:~$ confdc --version
 confd-8.0.20
 ```
 
-<br>
-
-このリポジトリにもいくつか例があります。
-
-```bash
-.
-├── 1-config           設定のYANGモデルの例です
-├── 2-state            状態のYANGモデルの例です
-├── 3-ping             オペレーションの例です
-├── 4-network-device   ルータっぽいYANGモデルの例です
-├── 5-openconfig       openconfigの例です
-├── 6-dnsmasq          実用的な応用例です
-├── 7-action           actionの例です
-├── 8-maapi            maapiの例です
-```
-
-動かすには各種のPythonモジュールが必要です。
-
-`bin/setup.sh` を実行すると実行環境が整います。
-
 <br><br>
 
 ## 動作確認
@@ -244,6 +221,44 @@ dhcpd_conf.pyというスクリプトも同時に走っていますが、
 ```bash
 pkill -f dhcpd_conf.py
 ```
+
+<br><br>
+
+## YANGモデルの例
+
+このリポジトリにもいくつか例を用意しました。
+
+```bash
+.
+├── 1-config           設定のYANGモデルの例です
+├── 2-state            状態のYANGモデルの例です
+├── 3-ping             オペレーションの例です
+├── 4-network-device   ルータっぽいYANGモデルの例です
+├── 5-openconfig       openconfigの例です
+├── 6-dnsmasq          実用的な応用例です
+├── 7-action           actionの例です
+├── 8-maapi            maapiの例です
+```
+
+動かすには各種のPythonモジュールが必要です。
+
+`bin/setup.sh` を実行すると実行環境が整います。
+
+<br><br>
+
+## マニュアル類
+
+ConfDをインストールした後にこのリポジトリの `bin/setup.sh` を実行すると、
+docディレクトリへのシンボリックリンクが作られます。
+
+vscodeでdoc/index.htmlを右クリックして「Open with Live Server」すると参照できます。
+
+![doc](/assets/confd_doc.png)
+
+<br>
+
+PDFの資料（ConfD User Guide）は1,100ページのボリュームがありますが、
+YANGに関する解説もあるので、見たほうがいいと思います。
 
 <br><br>
 

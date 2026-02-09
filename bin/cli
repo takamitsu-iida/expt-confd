@@ -2,7 +2,7 @@
 
 if [ -z "${USER}" ]
 then
-    confd_cli -u "$(whoami)" -c "$HOME" -R $1
+    confd_cli -u "$(whoami)" -c "$HOME" $1
 else
-    confd_cli -u "$USER" -c "$HOME" -R $1
+    confd_cli -u "$USER" -c "$HOME" $1
 fi
