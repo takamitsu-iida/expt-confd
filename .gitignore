@@ -25,6 +25,9 @@ ssh-keydir
 *.fxs
 *.ccl
 
+# confdのドキュメント類へのシンボリックリンク
+doc
+intro
 
 # サブディレクトリの中のconfd.confを無視する（自動生成のため）
 **/confd.conf

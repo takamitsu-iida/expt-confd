@@ -159,227 +159,27 @@ cisco@confd:~$ confdc --version
 confd-8.0.20
 ```
 
-<br><br>
-
-## CMLでの環境構築
-
-CML上にラボを立てて、そこで実験する場合です。
-
-CMLが稼働するHyper-Vの母艦となっているWindowsのWSL(Ubuntu)で作業を行います。
-
-母艦のWSL(Ubuntu)にて、このリポジトリをクローンします。
-
-```bash
-git clone https://github.com/takamitsu-iida/expt-confd.git
-```
-
-ディレクトリを移動します。
-
-```bash
-cd expt-confd
-```
-
-Python環境を整えるために、初期セットアップスクリプトを実行します。
-
-```bash
-bin/setup.sh
-```
-
 <br>
 
-### ラボのセットアップ
+このリポジトリにもいくつか例があります。
 
-CML上にラボを作成して、Ubuntuを作成します。
+```bash
+.
+├── 1-config           設定のYANGモデルの例です
+├── 2-state            状態のYANGモデルの例です
+├── 3-ping             オペレーションの例です
+├── 4-network-device   ルータっぽいYANGモデルの例です
+├── 5-openconfig       openconfigの例です
+├── 6-dnsmasq          実用的な応用例です
+├── 7-action           actionの例です
+├── 8-maapi            maapiの例です
+```
 
-ラボ構成はこのようにします。
+動かすには各種のPythonモジュールが必要です。
 
-![構成](/assets/lab.png)
+`bin/setup.sh` を実行すると実行環境が整います。
 
 <br><br>
-
-ラボの作成は手作業だと大変なのでスクリプトで作成します。
-
-cmlディレクトリにMakefileを準備してありますので、移動します。
-
-```bash
-cd cml
-```
-
-makeコマンドでラボを作成します。
-
-```bash
-$ make
-create                         ラボをCML上に作成する
-start                          ラボを開始する
-stop                           ラボを停止する
-delete                         ラボを削除する
-terminal                       ルータのコンソールに接続する
-```
-
-作成　`make create`
-
-```bash
-$ make create
-../bin/cml_create_confd_host.py --create --title "ConfD Lab" --description "ConfD lab for testing"
-2026-01-26 11:30:17,310 - INFO - Lab 'ConfD Lab' created successfully
-2026-01-26 11:30:17,310 - INFO - id: d05b8d5c-76e2-4795-bc1f-109fd5eb9a42
-```
-
-起動　`make start`
-
-```bash
-$ make start
-../bin/cml_create_confd_host.py --start --title "ConfD Lab"
-2026-01-26 11:30:39,154 - INFO - Starting lab 'ConfD Lab'
-2026-01-26 11:30:59,218 - INFO - Lab 'ConfD Lab' started
-```
-
-UbuntuのコンソールをWindows Terminalで開く　`make terminal`
-
-```bash
-$ make terminal
-../bin/open_terminal.sh 7000
-```
-
-<br>
-
-### ConfDのインストール
-
-ここからはラボ内のUbuntuのコンソールで作業します。
-
-作業はroot特権で行います。
-
-```bash
-sudo -s -E
-```
-
-ConfDをインストールする先を `/usr/lib/confd` とします。
-
-このディレクトリを作ります（Ubuntuの起動時にすでに作られているので念の為）。
-
-```bash
-mkdir -p /usr/lib/confd
-```
-
-インストール作業を行うフォルダを/tmpに作成します。
-
-```bash
-mkdir /tmp/confd
-cd /tmp/confd
-```
-
-Hyper-Vの母艦からConfDのファイルをダウンロードします。
-
-> [!NOTE]
->
-> Hyper-Vの母艦はWindows Defenderファイアウォールで防御されているかもしれません。
->
-> その場合は一時的にファイアウォールを停止します。
-
-<br>
-
-```bash
-wget http://192.168.0.198/confd-basic-8.0.20.linux.x86_64.signed.zip
-```
-
-unzipコマンドで解凍します。
-
-```bash
-unzip confd-basic-8.0.20.linux.x86_64.signed.zip
-```
-
-実行例。
-
-```bash
-root@confd:/tmp/confd# unzip confd-basic-8.0.20.linux.x86_64.signed.zip
-Archive:  confd-basic-8.0.20.linux.x86_64.signed.zip
-  inflating: confd-basic-8.0.20.libconfd.tar.gz
-  inflating: confd-basic-8.0.20.examples.tar.gz
-  inflating: confd-basic-8.0.20.linux.x86_64.signed.bin
-  inflating: confd-basic-8.0.20.doc.tar.gz
-```
-
-confd-basic-8.0.20.linux.x86_64.signed.bin を実行できるようにモードを変更します。
-
-```bash
-chmod a+x *.bin
-```
-
-実行します。
-
-```bash
-root@confd:~# ./confd-basic-8.0.20.linux.x86_64.signed.bin
-Unpacking...
-Verifying signature...
-CA chain innerspace chosen based on finding 'innerspace' string in eecert
-Using cert chain 'innerspace' (crcam2.cer and innerspace.cer)
-Retrieving rootCA certificate from https://www.cisco.com/security/pki/certs/crcam2.cer ...
-Success in downloading https://www.cisco.com/security/pki/certs/crcam2.cer
-Using downloaded rootCA cert /tmp/tmpx7zzmn0e/crcam2.cer
-Retrieving subCA certificate from https://www.cisco.com/security/pki/certs/innerspace.cer ...
-Success in downloading https://www.cisco.com/security/pki/certs/innerspace.cer
-Using downloaded subCA cert /tmp/tmpx7zzmn0e/innerspace.cer
-Successfully verified root, subca and end-entity certificate chain.
-Successfully fetched a public key from tailf.cer
-Successfully verified the signature of confd-basic-8.0.20.linux.x86_64.installer.bin using tailf.cer
-```
-
-ファイルがさらに解凍され　`confd-basic-8.0.20.linux.x86_64.installer.bin`　というファイルが生成されます。
-
-これがインストーラです。このbinファイルにも実行権限を付けます。
-
-```bash
-chmod a+x .bin
-```
-
-インストール先のディレクトリを指定して実行します。
-
-```bash
-./confd-basic-8.0.20.linux.x86_64.installer.bin /usr/lib/confd
-```
-
-実行例。
-
-```bash
-root@confd:/tmp/confd# ./confd-basic-8.0.20.linux.x86_64.installer.bin /usr/lib/confd
-INFO  Unpacked confd-basic-8.0.20 in /usr/lib/confd
-INFO  Found and unpacked corresponding DOCUMENTATION_PACKAGE
-INFO  Found and unpacked corresponding EXAMPLE_PACKAGE
-INFO  Generating default SSH hostkey (this may take some time)
-INFO  SSH hostkey generated
-INFO  Generating self-signed certificates for HTTPS
-INFO  Environment set-up generated in /usr/lib/confd/confdrc
-INFO  ConfD installation script finished
-root@confd:/tmp/confd#
-```
-
-インストールできました。
-
-作業用ディレクトリ /tmp/confd は不要ですので、削除します。
-
-```bash
-rm -rf /tmp/confd
-```
-
-/usr/lib/confd/confdrc を反映するために一度ログアウトします。
-
-もう一度ログインして、ルート特権を取ります。
-
-```bash
-sudo -s -E
-```
-
-コンパイラ `confdc` がPATHに存在するか、確認します。
-
-```bash
-cisco@confd:~$ which confdc
-/usr/lib/confd/bin/confdc
-
-cisco@confd:~$ confdc --version
-confd-8.0.20
-```
-
-<br><br><br>
 
 ## 動作確認
 

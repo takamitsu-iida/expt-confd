@@ -118,6 +118,50 @@ setup_direnv_hook() {
     fi
 }
 
+# CONFD関連のシンボリックリンクを作成する関数
+setup_confd_symlinks() {
+    # CONFD_DIR が未設定の場合はインストールされてないと判断してスキップ
+    if [ -z "$CONFD_DIR" ]; then
+        echo "⚠️ 環境変数 CONFD_DIR が設定されていないため、CONFDのシンボリックリンク作成をスキップします。"
+        return
+    fi
+
+    if [ ! -d "$CONFD_DIR" ]; then
+        echo "⚠️ CONFD_DIR=$CONFD_DIR はディレクトリではありません。シンボリックリンク作成をスキップします。"
+        return
+    fi
+
+    # $CONFD_DIR/doc -> $PROJECT_ROOT/doc
+    local doc_src="$CONFD_DIR/doc"
+    if [ -e "$doc_src" ]; then
+        if [ -L "$PROJECT_ROOT/doc" ]; then
+            echo "✅ シンボリックリンク $PROJECT_ROOT/doc は既に存在します。"
+        elif [ -e "$PROJECT_ROOT/doc" ]; then
+            echo "⚠️ $PROJECT_ROOT/doc が既に存在します（シンボリックリンクではありません）。リンク作成をスキップします。"
+        else
+            echo "--- $doc_src へのシンボリックリンクを作成します ---"
+            ln -s "$doc_src" "$PROJECT_ROOT"
+        fi
+    else
+        echo "⚠️ $doc_src が見つかりません。docへのリンク作成をスキップします。"
+    fi
+
+    # $CONFD_DIR/examples.confd/intro/python -> $PROJECT_ROOT/intro
+    local py_src="$CONFD_DIR/examples.confd/intro/python"
+    if [ -e "$py_src" ]; then
+        if [ -L "$PROJECT_ROOT/intro" ]; then
+            echo "✅ シンボリックリンク $PROJECT_ROOT/intro は既に存在します。"
+        elif [ -e "$PROJECT_ROOT/intro" ]; then
+            echo "⚠️ $PROJECT_ROOT/intro が既に存在します（シンボリックリンクではありません）。リンク作成をスキップします。"
+        else
+            echo "--- $py_src へのシンボリックリンクを作成します ---"
+            ln -s "$py_src" "$PROJECT_ROOT/intro"
+        fi
+    else
+        echo "⚠️ $py_src が見つかりません。introへのリンク作成をスキップします。"
+    fi
+}
+
 # direnvの設定ファイル（.envrc）を処理する関数
 setup_envrc() {
     if [ -f "$ENVRC_FILE" ]; then
@@ -224,6 +268,9 @@ setup_direnv_hook
 
 # 3. direnvの設定ファイル（.envrc）の処理
 setup_envrc
+
+# 3.5 CONFD関連のシンボリックリンク作成
+setup_confd_symlinks
 
 # 4. その他の設定ファイルテンプレートをコピー
 echo "--- その他の設定ファイルテンプレートのコピーを開始します ---"
