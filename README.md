@@ -228,7 +228,7 @@ pkill -f dhcpd_conf.py
 
 このリポジトリにもいくつか例を用意しました。
 
-```bash
+```text
 .
 ├── 1-config           設定のYANGモデルの例です
 ├── 2-state            状態のYANGモデルの例です
@@ -240,25 +240,22 @@ pkill -f dhcpd_conf.py
 ├── 8-maapi            maapiの例です
 ```
 
-動かすには各種のPythonモジュールが必要です。
-
-`bin/setup.sh` を実行すると実行環境が整います。
+動かすにはPythonのモジュールが必要です。`bin/setup.sh` を実行すると実行環境が整います。
 
 <br><br>
 
 ## マニュアル類
 
-ConfDをインストールした後にこのリポジトリの `bin/setup.sh` を実行すると、
+ConfDをインストールした後に、このリポジトリの `bin/setup.sh` を実行すると、
 docディレクトリへのシンボリックリンクが作られます。
 
-vscodeでdoc/index.htmlを右クリックして「Open with Live Server」すると参照できます。
+vscodeでdoc/index.htmlを右クリックして「Open with Live Server」するとブラウザで参照できます。
 
 ![doc](/assets/confd_doc.png)
 
 <br>
 
-PDFの資料（ConfD User Guide）はC言語を前提にしているので難解なのですが、
-YANGに関する解説の部分は読んでおいたほうがいいと思います。
+PDFの資料（ConfD User Guide）はボリュームがありますが、YANGに関する解説は読んでおいたほうがいいと思います。
 
 <br><br>
 
