@@ -257,8 +257,8 @@ vscodeでdoc/index.htmlを右クリックして「Open with Live Server」する
 
 <br>
 
-PDFの資料（ConfD User Guide）は1,100ページのボリュームがありますが、
-YANGに関する解説もあるので、見たほうがいいと思います。
+PDFの資料（ConfD User Guide）はC言語を前提にしているので難解なのですが、
+YANGに関する解説の部分は読んでおいたほうがいいと思います。
 
 <br><br>
 
