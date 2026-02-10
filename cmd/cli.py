@@ -5,10 +5,8 @@
 
 ConfD の Python API を一切使わず、以下を行う簡易 CLI を提供する:
 
-* cmd/yang/example-cli.yang を読み込み、そこに定義された rpc 名を
-    CLI のコマンドとして扱う
-* 同じ YANG で定義した operational state (container state, config false)
-    を ``show <leaf>`` で表示する
+* yang/example-cli.yang を読み込み、そこに定義された rpc 名をCLI のコマンドとして扱う
+* 同じ YANG で定義した operational state (container state, config false)を ``show <leaf>`` で表示する
 * prompt_toolkit を用いて、補完付きの対話的な CLI を実装する
 
 このスクリプトは ConfD やその Python バインディングには依存しない。
@@ -63,7 +61,6 @@ class YangModel:
     rpc_handlers: Dict[str, str] = field(default_factory=dict)
     rpc_usages: Dict[str, str] = field(default_factory=dict)
     state_leaf_handlers: Dict[str, str] = field(default_factory=dict)
-    rpc_hidden: Dict[str, bool] = field(default_factory=dict)
     rpc_arg_styles: Dict[str, str] = field(default_factory=dict)
 
 
@@ -126,12 +123,6 @@ def load_example_yang(directory: Path) -> YangModel:
                 return sub.arg.strip()
         return None
 
-    def _has_extension(stmt, localname: str) -> bool:
-        for sub in getattr(stmt, "substmts", []) or []:
-            if _is_extension(sub, localname):
-                return True
-        return False
-
     def walk(stmt, in_state: bool) -> None:
         # rpc
         if stmt.keyword == "rpc":
@@ -158,10 +149,6 @@ def load_example_yang(directory: Path) -> YangModel:
                 style = _first_extension_arg(stmt, "rpc-arg-style")
                 if style is not None:
                     model.rpc_arg_styles[name] = style
-
-            # cli-hidden 拡張が付いていれば隠し RPC として扱う
-            if name not in model.rpc_hidden and _has_extension(stmt, "cli-hidden"):
-                model.rpc_hidden[name] = True
 
         # state コンテナ (config false)
         if stmt.keyword == "container":
@@ -379,9 +366,6 @@ class ExampleCli:
         print("")
         print("RPC commands (from YANG):")
         for name in self.model.rpc_names:
-            # cli-hidden な RPC は一般的なヘルプ一覧からは除外する
-            if self.model.rpc_hidden.get(name):
-                continue
             desc = self.model.rpc_descriptions.get(name, "")
             # usage は YANG の cli-usage 拡張から取得
             usage = self.model.rpc_usages.get(name)
@@ -644,12 +628,8 @@ class CliCompleter(Completer):
             "help",
             "?",
         ]
-        # rpc 名はそのまま補完するが、cli-hidden なものは除外する
-        commands.extend(
-            name
-            for name in self._cli.model.rpc_names
-            if not self._cli.model.rpc_hidden.get(name)
-        )
+        # rpc 名はそのまま補完する
+        commands.extend(self._cli.model.rpc_names)
 
         # 文脈に応じた候補を決める
         candidates: List[str]
@@ -663,12 +643,22 @@ class CliCompleter(Completer):
             else:
                 # "show <leaf> ..." 形式の場合
                 if len(tokens) >= 3:
-                    # "show <leaf> " の後は、leaf ごとの補完候補
                     leaf_name = tokens[1]
-                    candidates = self._cli.model.state_leaf_completions.get(
+                    base = self._cli.model.state_leaf_completions.get(
                         leaf_name,
                         [],
                     )
+                    # leaf 名の後に「非空トークン + 末尾の空トークン」があれば、
+                    # すなわち "show route ipv4 " のように完全に入力済みとみなし、
+                    # <CR> のみを候補に出す。それ以外 (例: "show route i") では
+                    # 通常どおり base を使い、word プレフィックスでフィルタする。
+                    tail = tokens[2:]
+                    has_non_empty = any(t for t in tail)
+                    ends_with_empty = bool(tail) and tail[-1] == ""
+                    if has_non_empty and ends_with_empty:
+                        candidates = [c for c in base if c == "<CR>"]
+                    else:
+                        candidates = base
                 else:
                     candidates = []
         else:
@@ -686,26 +676,6 @@ class CliCompleter(Completer):
 
 
 # --- YANG から指定される Python handler 用ラッパー ------------------------
-
-
-def rpc_show_route(cli: "ExampleCli", args: Dict[str, str]) -> None:
-    """YANG rpc show-route 用の Python ハンドラ。
-
-    YANG では input leaf family を定義しているが、CLI からは
-    "show route [ipv4|ipv6]" として呼び出される想定。
-
-    - family が指定されなければ両方
-    - family=ipv4 / ipv6 ならそのファミリのみ
-
-    実際のルート出力は ExampleCli._show_route_state() に委譲する。
-    """
-
-    family = args.get("family") if args is not None else None
-    if family not in {None, "ipv4", "ipv6"}:
-        print("Usage: show route [ipv4|ipv6]")
-        return
-
-    cli._show_route_state(family)
 
 
 def rpc_hello(cli: ExampleCli, args: Dict[str, str]) -> None:
@@ -783,14 +753,24 @@ def state_last_ping_success(cli: ExampleCli, args: List[str]) -> None:
 def state_route(cli: ExampleCli, args: List[str]) -> None:
     """state leaf 'route' 用 handler.
 
-    現状の CLI では "show route ..." は rpc show-route を通して
-    実装しているため、このハンドラは実際には使われないが、
-    YANG モデルの一貫性のために定義しておく。
+    "show route [ipv4|ipv6]" を state ベースで実装する。
     """
 
-    # ルート情報の詳細表示は rpc_show_route/_show_route_state に任せる。
-    summary = cli.state.get("route")
-    print(f"state route: {summary}")
+    # args には "show route" 以降のトークンが入っている想定
+    family: Optional[str] = None
+    if len(args) == 0:
+        family = None
+    elif len(args) == 1:
+        family = args[0]
+    else:
+        print("Usage: show route [ipv4|ipv6]")
+        return
+
+    if family not in {None, "ipv4", "ipv6"}:
+        print("Usage: show route [ipv4|ipv6]")
+        return
+
+    cli._show_route_state(family)
 
 
 def main(argv: List[str]) -> int:

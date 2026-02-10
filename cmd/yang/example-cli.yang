@@ -49,17 +49,6 @@ module example-cli {
       "Human-readable CLI usage string for this RPC (shown in help).";
   }
 
-  // Optional flag to hide an RPC from generic CLI listings/completion.
-  //
-  // When present, the CLI will not propose this RPC name as a
-  // top-level command in completion or the generic "RPC commands"
-  // section of help. It can still be invoked directly by its name
-  // if the user knows it.
-  extension cli-hidden {
-    description
-      "Mark this RPC as hidden from top-level CLI help and completion.";
-  }
-
   // Optional CLI completion candidates for a state leaf.
   //
   // The argument is a space-separated list of tokens that will be
@@ -187,39 +176,6 @@ module example-cli {
       leaf success {
         type boolean;
         description "true if the simulated ping succeeded.";
-      }
-    }
-  }
-
-  // Show routing information.
-  //
-  // CLI では次のように呼び出すことを想定している:
-  //   show route
-  //   show route ipv4
-  //   show route ipv6
-  //
-  // ここでは RPC 名を "show-route" とし、CLI 側では
-  // "show route" をこの RPC にマッピングする。
-  rpc show-route {
-    ex:python-handler "cli:rpc_show_route";
-    ex:cli-usage "show route [ipv4|ipv6]";
-    ex:cli-hidden;
-    description
-      "Show routing information for IPv4/IPv6 (demo data).";
-    input {
-      leaf family {
-        type enumeration {
-          enum ipv4;
-          enum ipv6;
-        }
-        description
-          "Address family to show (ipv4 or ipv6). If omitted, show both.";
-      }
-    }
-    output {
-      leaf result {
-        type string;
-        description "Human-readable routing table output (for demo).";
       }
     }
   }
