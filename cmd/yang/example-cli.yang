@@ -3,7 +3,7 @@
 // - RPCs in this module are exposed as CLI commands
 //   (hello, add, set-hostname, ping).
 // - The "state" container represents operational state that
-//   the CLI shows via "show state" / "show state <leaf>".
+//   the CLI shows via "show <leaf>".
 // - Custom extensions ex:python-handler / ex:cli-usage are
 //   consumed by the Python CLI to locate handlers and
 //   generate help/usage strings.
@@ -24,7 +24,7 @@ module example-cli {
      - rpc set-hostname:  sets the (demo) system hostname
      - rpc ping:          simulates a ping and records last target/result
      - container state (config false): operational state that can be
-       shown from the CLI via 'show state'.
+       shown from the CLI via 'show <leaf>'.
     ";
 
   // Python handler symbol used by the CLI implementation.
@@ -47,6 +47,52 @@ module example-cli {
     argument "text";
     description
       "Human-readable CLI usage string for this RPC (shown in help).";
+  }
+
+  // Optional flag to hide an RPC from generic CLI listings/completion.
+  //
+  // When present, the CLI will not propose this RPC name as a
+  // top-level command in completion or the generic "RPC commands"
+  // section of help. It can still be invoked directly by its name
+  // if the user knows it.
+  extension cli-hidden {
+    description
+      "Mark this RPC as hidden from top-level CLI help and completion.";
+  }
+
+  // Optional CLI completion candidates for a state leaf.
+  //
+  // The argument is a space-separated list of tokens that will be
+  // proposed by the CLI when completing after that leaf, e.g.
+  //   show route <TAB>  ->  ipv4 ipv6
+  extension cli-completion {
+    argument "values";
+    description
+      "Space-separated completion candidates for CLI after this leaf.";
+  }
+
+  // Optional Python handler for a state leaf.
+  //
+  // If present, the CLI will call this handler when executing
+  //   show <leaf> [...]
+  // instead of printing the raw value from the internal state dict.
+  // The argument is a "module:function" string similar to
+  // ex:python-handler used for RPCs.
+  extension state-python-handler {
+    argument "symbol";
+    description
+      "Python handler in 'module:function' format for a state leaf.";
+  }
+
+  // Argument style hint for an RPC.
+  //
+  // If set to "positional", the CLI will treat arguments after
+  // the RPC name as positional tokens and pass them as a list to
+  // the Python handler. The default is "kv" (key=value pairs).
+  extension rpc-arg-style {
+    argument "style";
+    description
+      "Hint for CLI argument style: 'positional' or 'kv' (default).";
   }
 
   revision "2026-02-10" {
@@ -124,6 +170,7 @@ module example-cli {
   rpc ping {
     ex:python-handler "cli:rpc_ping";
     ex:cli-usage "ping <dest> [count]";
+    ex:rpc-arg-style "positional";
     description "Simulate a ping operation and record the last result in state.";
     input {
       leaf destination {
@@ -144,46 +191,102 @@ module example-cli {
     }
   }
 
-  // --- Operational state shown by "show state" --------------------
+  // Show routing information.
+  //
+  // CLI では次のように呼び出すことを想定している:
+  //   show route
+  //   show route ipv4
+  //   show route ipv6
+  //
+  // ここでは RPC 名を "show-route" とし、CLI 側では
+  // "show route" をこの RPC にマッピングする。
+  rpc show-route {
+    ex:python-handler "cli:rpc_show_route";
+    ex:cli-usage "show route [ipv4|ipv6]";
+    ex:cli-hidden;
+    description
+      "Show routing information for IPv4/IPv6 (demo data).";
+    input {
+      leaf family {
+        type enumeration {
+          enum ipv4;
+          enum ipv6;
+        }
+        description
+          "Address family to show (ipv4 or ipv6). If omitted, show both.";
+      }
+    }
+    output {
+      leaf result {
+        type string;
+        description "Human-readable routing table output (for demo).";
+      }
+    }
+  }
+
+  // --- Operational state shown by "show <leaf>" -------------------
 
   // Non-config data that the CLI exposes via:
-  //   show state
-  //   show state <leaf>
+  //   show <leaf>
   //
   // Each leaf here becomes one key in the internal state dict
   // inside cmd/cli.py (ExampleCli.state).
   container state {
     config false;
-    description "Operational state to be displayed with 'show state'.";
+    description "Operational state to be displayed with 'show <leaf>'.";
 
     leaf hostname {
       type string;
       description "Current demo hostname (managed via rpc set-hostname).";
+      ex:state-python-handler "cli:state_hostname";
     }
 
     leaf mgmt-ip {
       type string;
       description "Management IP address (demo value).";
+      ex:state-python-handler "cli:state_mgmt_ip";
     }
 
     leaf last-hello {
       type string;
       description "The last greeting that was returned by rpc 'hello'.";
+      ex:state-python-handler "cli:state_last_hello";
     }
 
     leaf last-add-result {
       type int32;
       description "The last result produced by rpc 'add'.";
+      ex:state-python-handler "cli:state_last_add_result";
     }
 
     leaf last-ping-target {
       type string;
       description "The last destination used with rpc 'ping'.";
+      ex:state-python-handler "cli:state_last_ping_target";
     }
 
     leaf last-ping-success {
       type boolean;
       description "The last success value produced by rpc 'ping'.";
+      ex:state-python-handler "cli:state_last_ping_success";
+    }
+
+    // Routing state summary. Detailed routes are printed by the
+    // CLI via:
+    //   show route
+    //   show route ipv4
+    //   show route ipv6
+    leaf route {
+      type string;
+      // "<CR>" は CLI 側で特別扱いされ、文字は挿入せず
+      // 「そのまま Enter で実行できる」ことを示すためだけに
+      // 補完リストに表示される。
+      ex:cli-completion "<CR> ipv4 ipv6";
+      // route leaf にも state-python-handler を付けておくが、
+      // 実際の show route 動作は RPC show-route の方を利用する。
+      ex:state-python-handler "cli:state_route";
+      description
+        "Routing table state (see 'show route [ipv4|ipv6]').";
     }
   }
 }

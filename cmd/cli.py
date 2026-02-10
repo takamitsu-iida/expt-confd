@@ -6,9 +6,9 @@
 ConfD の Python API を一切使わず、以下を行う簡易 CLI を提供する:
 
 * cmd/yang/example-cli.yang を読み込み、そこに定義された rpc 名を
-        CLI のコマンドとして扱う
+    CLI のコマンドとして扱う
 * 同じ YANG で定義した operational state (container state, config false)
-        を ``show state`` / ``show state <leaf>`` で表示する
+    を ``show <leaf>`` で表示する
 * prompt_toolkit を用いて、補完付きの対話的な CLI を実装する
 
 このスクリプトは ConfD やその Python バインディングには依存しない。
@@ -51,14 +51,20 @@ class YangModel:
     * rpc_usages: rpc ごとの CLI usage 文字列
     * state_leaf_names: container state 配下の leaf 名一覧
     * state_leaf_descriptions: state leaf ごとの description 文字列
+    * state_leaf_completions: state leaf ごとの補完候補 (オプション)
+    * state_leaf_handlers: state leaf ごとの Python handler シンボル
     """
 
     rpc_names: List[str] = field(default_factory=list)
     state_leaf_names: List[str] = field(default_factory=list)
     rpc_descriptions: Dict[str, str] = field(default_factory=dict)
     state_leaf_descriptions: Dict[str, str] = field(default_factory=dict)
+    state_leaf_completions: Dict[str, List[str]] = field(default_factory=dict)
     rpc_handlers: Dict[str, str] = field(default_factory=dict)
     rpc_usages: Dict[str, str] = field(default_factory=dict)
+    state_leaf_handlers: Dict[str, str] = field(default_factory=dict)
+    rpc_hidden: Dict[str, bool] = field(default_factory=dict)
+    rpc_arg_styles: Dict[str, str] = field(default_factory=dict)
 
 
 def load_example_yang(directory: Path) -> YangModel:
@@ -120,6 +126,12 @@ def load_example_yang(directory: Path) -> YangModel:
                 return sub.arg.strip()
         return None
 
+    def _has_extension(stmt, localname: str) -> bool:
+        for sub in getattr(stmt, "substmts", []) or []:
+            if _is_extension(sub, localname):
+                return True
+        return False
+
     def walk(stmt, in_state: bool) -> None:
         # rpc
         if stmt.keyword == "rpc":
@@ -141,6 +153,15 @@ def load_example_yang(directory: Path) -> YangModel:
                 usage = _first_extension_arg(stmt, "cli-usage")
                 if usage is not None:
                     model.rpc_usages[name] = usage
+
+            if name not in model.rpc_arg_styles:
+                style = _first_extension_arg(stmt, "rpc-arg-style")
+                if style is not None:
+                    model.rpc_arg_styles[name] = style
+
+            # cli-hidden 拡張が付いていれば隠し RPC として扱う
+            if name not in model.rpc_hidden and _has_extension(stmt, "cli-hidden"):
+                model.rpc_hidden[name] = True
 
         # state コンテナ (config false)
         if stmt.keyword == "container":
@@ -166,6 +187,17 @@ def load_example_yang(directory: Path) -> YangModel:
                 desc = _first_description_arg(stmt)
                 if desc is not None:
                     model.state_leaf_descriptions[leaf_name] = desc
+
+            if leaf_name not in model.state_leaf_completions:
+                comp = _first_extension_arg(stmt, "cli-completion")
+                if comp is not None:
+                    # 空白区切りの候補リストとみなす
+                    model.state_leaf_completions[leaf_name] = comp.split()
+
+            if leaf_name not in model.state_leaf_handlers:
+                handler = _first_extension_arg(stmt, "state-python-handler")
+                if handler is not None:
+                    model.state_leaf_handlers[leaf_name] = handler
 
         for sub in getattr(stmt, "substmts", []) or []:
             walk(sub, in_state)
@@ -199,6 +231,10 @@ class ExampleCli:
         if "mgmt-ip" in self.state:
             # demo 用の固定値 (必要なら YANG 側に default を追加してもよい)
             self.state["mgmt-ip"] = "192.0.2.1"
+
+        if "route" in self.state:
+            # route は詳細表示用サマリ
+            self.state["route"] = "use 'show route [ipv4|ipv6]'"
 
     def run(self) -> None:
         """メインの REPL ループを実行する。"""
@@ -239,14 +275,7 @@ class ExampleCli:
             self._print_help()
             return True
 
-        # show コマンド
-        if line.startswith("show"):
-            parts = line.split(maxsplit=1)
-            arg = parts[1] if len(parts) == 2 else ""
-            self.do_show(arg)
-            return True
-
-        # それ以外は rpc として扱う
+        # 以降はトークン単位で処理する
         try:
             tokens = shlex.split(line)
         except ValueError as e:
@@ -254,6 +283,26 @@ class ExampleCli:
             return True
 
         if not tokens:
+            return True
+
+        # show 系コマンド
+        if tokens[0] == "show":
+            # 2語目以降が無い場合は使い方を案内
+            if len(tokens) == 1:
+                print("Usage: show <leaf> [<args>]")
+                return True
+
+            # show state ... はサポートしない (古い書き方を明示的に拒否)
+            if tokens[1] == "state":
+                print("Do not use 'state'. Use: show <leaf> [...]")
+                return True
+
+            # show <leaf> [...] を内部的に
+            # "state <leaf> [...]" にマップ
+            # 例: show hostname -> "state hostname"
+            arg = "state " + " ".join(tokens[1:])
+
+            self.do_show(arg)
             return True
 
         name = tokens[0]
@@ -275,16 +324,22 @@ class ExampleCli:
         # YANG で指定された Python handler を優先的に使う
         handler_symbol = self.model.rpc_handlers.get(name)
 
-        # ping だけは空白区切り引数
-        if name == "ping":
+        # 引数スタイルは YANG の rpc-arg-style から取得 (デフォルトは kv)
+        arg_style = self.model.rpc_arg_styles.get(name, "kv")
+
+        if arg_style == "positional":
+            payload = tokens[1:]
             if handler_symbol:
-                self._dispatch_handler(handler_symbol, name, tokens[1:])
+                self._dispatch_handler(handler_symbol, name, payload)
             else:
-                # 後方互換用のフォールバック
-                self._rpc_ping(tokens[1:])
+                # 後方互換: 既存のハードコード実装を使用
+                if name == "ping":
+                    self._rpc_ping(payload)
+                else:
+                    print(f"rpc '{name}' (positional) has no handler.")
             return True
 
-        # それ以外は key=value 形式でパース
+        # デフォルトは key=value 形式でパース
         args = self._parse_key_value_args(tokens[1:])
         if args is None:
             return True
@@ -308,7 +363,7 @@ class ExampleCli:
         """YANG モデルから生成した簡単なヘルプを表示する。"""
 
         print("Available built-in commands:")
-        print("  show state [<leaf>]   - Show operational state")
+        print("  show <leaf> [<args>]  - Show operational state")
         print("  exit, quit            - Exit the CLI")
         print("  help, ?               - Show this help")
 
@@ -324,6 +379,9 @@ class ExampleCli:
         print("")
         print("RPC commands (from YANG):")
         for name in self.model.rpc_names:
+            # cli-hidden な RPC は一般的なヘルプ一覧からは除外する
+            if self.model.rpc_hidden.get(name):
+                continue
             desc = self.model.rpc_descriptions.get(name, "")
             # usage は YANG の cli-usage 拡張から取得
             usage = self.model.rpc_usages.get(name)
@@ -339,7 +397,7 @@ class ExampleCli:
     # --- show コマンド -------------------------------------------------
 
     def do_show(self, arg: str) -> None:
-        """show state [<leaf>]
+        """show <leaf> [<args>]
 
         YANG の container state に対応する operational state を表示する。
         """
@@ -351,26 +409,38 @@ class ExampleCli:
             return
 
         if not tokens:
-            print("Usage: show state [<leaf>]")
+            print("Usage: show <leaf> [<args>]")
             return
 
         if tokens[0] != "state":
-            print("Only 'show state' is supported in this demo.")
+            # 内部的には常に "state ..." で呼ばれる想定
+            print("Internal error: unexpected show argument")
             return
 
+        # すべての leaf を表示
         if len(tokens) == 1:
-            # すべての leaf
             print("state:")
             for leaf in self.model.state_leaf_names:
                 value = self.state.get(leaf)
                 print(f"  {leaf}: {value}")
             return
 
+        # 通常の 1 レベル leaf 表示
         leaf = tokens[1]
         if leaf not in self.model.state_leaf_names:
             print(f"Unknown state leaf: {leaf}")
             return
 
+        # YANG で state leaf 用の Python handler が定義されていれば、
+        # それを優先的に呼び出す。payload には leaf 以降のトークンを
+        # そのまま渡す (位置引数スタイル)。
+        handler_symbol = self.model.state_leaf_handlers.get(leaf)
+        if handler_symbol:
+            extra_tokens = tokens[2:]
+            self._dispatch_handler(handler_symbol, f"state-{leaf}", extra_tokens)
+            return
+
+        # ハンドラが無い場合のフォールバック: 単純に state dict を表示
         value = self.state.get(leaf)
         print(f"state {leaf}: {value}")
 
@@ -458,6 +528,37 @@ class ExampleCli:
         self.state["last-ping-target"] = dest
         self.state["last-ping-success"] = "true" if success else "false"
 
+    def _show_route_state(self, family: Optional[str]) -> None:
+        """Show routing state for `show route [...]`."""
+
+        # Demo 用のダミー経路データ
+        ipv4_routes = [
+            ("0.0.0.0/0", "192.0.2.254", 1),
+            ("192.0.2.0/24", "0.0.0.0", 0),
+        ]
+        ipv6_routes = [
+            ("::/0", "2001:db8::ffff", 1),
+            ("2001:db8::/64", "::", 0),
+        ]
+
+        def print_ipv4() -> None:
+            print("state route ipv4:")
+            for prefix, nexthop, metric in ipv4_routes:
+                print(f"  {prefix:18s} via {nexthop:15s} metric {metric}")
+
+        def print_ipv6() -> None:
+            print("state route ipv6:")
+            for prefix, nexthop, metric in ipv6_routes:
+                print(f"  {prefix:24s} via {nexthop:20s} metric {metric}")
+
+        if family is None:
+            print_ipv4()
+            print("")
+            print_ipv6()
+        elif family == "ipv4":
+            print_ipv4()
+        else:  # ipv6
+            print_ipv6()
     # --- helper --------------------------------------------------------
 
     @staticmethod
@@ -488,8 +589,11 @@ class ExampleCli:
         """YANG で指定された Python handler を呼び出す。
 
         handler_symbol は 'module:function' 形式とする。
-        - ping の場合: payload は List[str] (トークン列)
-        - それ以外:   payload は Dict[str, str] (key=value でパース済み)
+
+        payload の型は呼び出し元により異なる:
+        - ping の場合:         List[str] (トークン列)
+        - state leaf handler:  List[str] (leaf 以降のトークン列)
+        - それ以外の rpc:      Dict[str, str] (key=value でパース済み)
         """
 
         try:
@@ -540,7 +644,12 @@ class CliCompleter(Completer):
             "help",
             "?",
         ]
-        commands.extend(self._cli.model.rpc_names)
+        # rpc 名はそのまま補完するが、cli-hidden なものは除外する
+        commands.extend(
+            name
+            for name in self._cli.model.rpc_names
+            if not self._cli.model.rpc_hidden.get(name)
+        )
 
         # 文脈に応じた候補を決める
         candidates: List[str]
@@ -549,23 +658,54 @@ class CliCompleter(Completer):
             candidates = commands
         elif tokens[0] == "show":
             if len(tokens) == 2:
-                # "show " の直後は state
-                candidates = ["state"]
-            elif len(tokens) == 3 and tokens[1] == "state":
-                # "show state " の後は state leaf 名
+                # "show " の直後は state leaf 名をそのまま補完
                 candidates = self._cli.model.state_leaf_names
             else:
-                candidates = []
+                # "show <leaf> ..." 形式の場合
+                if len(tokens) >= 3:
+                    # "show <leaf> " の後は、leaf ごとの補完候補
+                    leaf_name = tokens[1]
+                    candidates = self._cli.model.state_leaf_completions.get(
+                        leaf_name,
+                        [],
+                    )
+                else:
+                    candidates = []
         else:
             # それ以外は特に文脈依存補完はしない
             candidates = []
 
         for c in candidates:
             if not word or c.startswith(word):
-                yield Completion(c, start_position=-len(word))
+                # 特別な sentinel "<CR>" は「そのまま Enter」であることを
+                # 示すために表示だけ行い、実際には何も挿入しない。
+                if c == "<CR>":
+                    yield Completion("", start_position=-len(word), display="<CR>")
+                else:
+                    yield Completion(c, start_position=-len(word))
 
 
 # --- YANG から指定される Python handler 用ラッパー ------------------------
+
+
+def rpc_show_route(cli: "ExampleCli", args: Dict[str, str]) -> None:
+    """YANG rpc show-route 用の Python ハンドラ。
+
+    YANG では input leaf family を定義しているが、CLI からは
+    "show route [ipv4|ipv6]" として呼び出される想定。
+
+    - family が指定されなければ両方
+    - family=ipv4 / ipv6 ならそのファミリのみ
+
+    実際のルート出力は ExampleCli._show_route_state() に委譲する。
+    """
+
+    family = args.get("family") if args is not None else None
+    if family not in {None, "ipv4", "ipv6"}:
+        print("Usage: show route [ipv4|ipv6]")
+        return
+
+    cli._show_route_state(family)
 
 
 def rpc_hello(cli: ExampleCli, args: Dict[str, str]) -> None:
@@ -593,6 +733,64 @@ def rpc_ping(cli: ExampleCli, tokens: List[str]) -> None:
     """YANG rpc 'ping' 用 handler."""
 
     cli._rpc_ping(tokens)
+
+
+# --- state leaf 用ハンドラ -----------------------------------------------
+
+
+def state_hostname(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'hostname' 用 handler."""
+
+    value = cli.state.get("hostname")
+    print(f"state hostname: {value}")
+
+
+def state_mgmt_ip(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'mgmt-ip' 用 handler."""
+
+    value = cli.state.get("mgmt-ip")
+    print(f"state mgmt-ip: {value}")
+
+
+def state_last_hello(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'last-hello' 用 handler."""
+
+    value = cli.state.get("last-hello")
+    print(f"state last-hello: {value}")
+
+
+def state_last_add_result(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'last-add-result' 用 handler."""
+
+    value = cli.state.get("last-add-result")
+    print(f"state last-add-result: {value}")
+
+
+def state_last_ping_target(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'last-ping-target' 用 handler."""
+
+    value = cli.state.get("last-ping-target")
+    print(f"state last-ping-target: {value}")
+
+
+def state_last_ping_success(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'last-ping-success' 用 handler."""
+
+    value = cli.state.get("last-ping-success")
+    print(f"state last-ping-success: {value}")
+
+
+def state_route(cli: ExampleCli, args: List[str]) -> None:
+    """state leaf 'route' 用 handler.
+
+    現状の CLI では "show route ..." は rpc show-route を通して
+    実装しているため、このハンドラは実際には使われないが、
+    YANG モデルの一貫性のために定義しておく。
+    """
+
+    # ルート情報の詳細表示は rpc_show_route/_show_route_state に任せる。
+    summary = cli.state.get("route")
+    print(f"state route: {summary}")
 
 
 def main(argv: List[str]) -> int:
