@@ -91,7 +91,7 @@ module example-cli {
   // --- RPC commands exposed as CLI commands ------------------------
 
   rpc hello {
-    ex:python-handler "cli:rpc_hello";
+    ex:python-handler "cli_core:rpc_hello";
     ex:cli-usage "hello name=<name>";
     description "Return a greeting message.";
     input {
@@ -110,7 +110,7 @@ module example-cli {
 
   // Simple arithmetic demo RPC.
   rpc add {
-    ex:python-handler "cli:rpc_add";
+    ex:python-handler "cli_core:rpc_add";
     ex:cli-usage "add x=<int> y=<int>";
     description "Add two integers.";
     input {
@@ -134,7 +134,7 @@ module example-cli {
   // Demo of a configuration-style RPC that updates operational
   // state (but does NOT touch the real OS hostname).
   rpc set-hostname {
-    ex:python-handler "cli:rpc_set_hostname";
+    ex:python-handler "cli_core:rpc_set_hostname";
     ex:cli-usage "set-hostname hostname=<name>";
     description
       "Set the demo system hostname (does not change the real OS hostname).";
@@ -157,7 +157,7 @@ module example-cli {
   // CLI 側では "ping <dest> [count]" の位置引数で受け取り、
   // YANG input では destination / count の 2 つの leaf に対応させる。
   rpc ping {
-    ex:python-handler "cli:rpc_ping";
+    ex:python-handler "cli_core:rpc_ping";
     ex:cli-usage "ping <dest> [count]";
     ex:rpc-arg-style "positional";
     description "Simulate a ping operation and record the last result in state.";
@@ -194,37 +194,37 @@ module example-cli {
     leaf hostname {
       type string;
       description "Current demo hostname (managed via rpc set-hostname).";
-      ex:state-python-handler "cli:state_hostname";
+      ex:state-python-handler "cli_core:state_hostname";
     }
 
     leaf mgmt-ip {
       type string;
       description "Management IP address (demo value).";
-      ex:state-python-handler "cli:state_mgmt_ip";
+      ex:state-python-handler "cli_core:state_mgmt_ip";
     }
 
     leaf last-hello {
       type string;
       description "The last greeting that was returned by rpc 'hello'.";
-      ex:state-python-handler "cli:state_last_hello";
+      ex:state-python-handler "cli_core:state_last_hello";
     }
 
     leaf last-add-result {
       type int32;
       description "The last result produced by rpc 'add'.";
-      ex:state-python-handler "cli:state_last_add_result";
+      ex:state-python-handler "cli_core:state_last_add_result";
     }
 
     leaf last-ping-target {
       type string;
       description "The last destination used with rpc 'ping'.";
-      ex:state-python-handler "cli:state_last_ping_target";
+      ex:state-python-handler "cli_core:state_last_ping_target";
     }
 
     leaf last-ping-success {
       type boolean;
       description "The last success value produced by rpc 'ping'.";
-      ex:state-python-handler "cli:state_last_ping_success";
+      ex:state-python-handler "cli_core:state_last_ping_success";
     }
 
     // Routing state summary. Detailed routes are printed by the
@@ -240,7 +240,7 @@ module example-cli {
       ex:cli-completion "<CR> ipv4 ipv6";
       // route leaf にも state-python-handler を付けておくが、
       // 実際の show route 動作は RPC show-route の方を利用する。
-      ex:state-python-handler "cli:state_route";
+      ex:state-python-handler "cli_core:state_route";
       description
         "Routing table state (see 'show route [ipv4|ipv6]').";
     }
