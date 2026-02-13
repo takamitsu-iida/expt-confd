@@ -242,11 +242,3 @@ container state {
    - `cli_core.py` に `state_new_leaf(cli: ExampleCli, args: Sequence[str])` を追加
 
 とすることで、`show new-leaf` 実行時にその関数が呼ばれます。
-
----
-
-## 参考
-
-- YANG モデル本体: `yang/example-cli.yang`
-- ConfD や YANG についての全体的な説明は、上位ディレクトリの
-  `README.md` も参照してください。
